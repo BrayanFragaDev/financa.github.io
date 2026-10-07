@@ -1,7 +1,7 @@
 // Service worker: deixa o app abrir mesmo sem internet.
 // Os dados em si ficam no cache offline do Firestore.
 // Ao atualizar o app, troque o número da versão abaixo (v1 -> v2).
-const CACHE = 'financas-v1';
+const CACHE = 'financas-v2';
 const SHELL = ['./', './index.html', './firebase-config.js', './manifest.webmanifest',
                './icon-192.png', './icon-512.png', './apple-touch-icon.png'];
 

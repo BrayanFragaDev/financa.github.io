@@ -64,6 +64,11 @@ button,input,select,textarea{font:inherit;color:inherit}
 .authwrap[hidden],.wrap[hidden],.setup[hidden]{display:none}
 .authcard{width:100%;max-width:400px}
 .authcard h1{font-family:var(--display);font-weight:800;font-size:1.6rem;margin:0 0 4px;letter-spacing:-.01em}
+.gbtn{display:flex;align-items:center;justify-content:center;gap:10px;width:100%;padding:11px 14px;border:1px solid var(--line);border-radius:10px;background:var(--surface);cursor:pointer;font-weight:600}
+.gbtn:hover{border-color:var(--muted)}
+.gbtn svg{width:18px;height:18px;flex:none}
+.or{display:flex;align-items:center;gap:10px;color:var(--muted);font-size:.82rem;margin:14px 0}
+.or::before,.or::after{content:"";flex:1;height:1px;background:var(--line)}
 .linkbtn{background:none;border:0;padding:6px 0;margin-top:8px;color:var(--accent);cursor:pointer;text-decoration:underline;font-size:.9rem}
 .setup{max-width:560px;margin:40px auto;border-color:var(--exp)}
 .setup code{background:var(--bg);padding:1px 6px;border-radius:6px}
@@ -196,7 +201,12 @@ dialog .actions{justify-content:flex-end;flex-wrap:wrap}
   <div class="panel authcard">
     <h1>Finanças da casa</h1>
     <p class="hint">Entre para ver seus lançamentos em qualquer aparelho.</p>
-    <form id="authForm" style="margin-top:14px">
+    <button type="button" class="gbtn" id="googleBtn" style="margin-top:14px">
+      <svg viewBox="0 0 48 48" aria-hidden="true"><path fill="#EA4335" d="M24 9.5c3.5 0 6.6 1.2 9.1 3.6l6.8-6.8C35.8 2.4 30.3 0 24 0 14.6 0 6.5 5.4 2.6 13.2l7.9 6.1C12.4 13.6 17.7 9.5 24 9.5z"/><path fill="#4285F4" d="M46.5 24.5c0-1.6-.1-3.1-.4-4.5H24v9h12.7c-.6 3-2.2 5.5-4.7 7.2l7.6 5.9c4.4-4.1 6.9-10.1 6.9-17.6z"/><path fill="#FBBC05" d="M10.5 28.7c-.5-1.4-.8-3-.8-4.7s.3-3.2.8-4.7l-7.9-6.1C.9 16.4 0 20.1 0 24s.9 7.6 2.6 10.8l7.9-6.1z"/><path fill="#34A853" d="M24 48c6.5 0 11.9-2.1 15.9-5.8l-7.6-5.9c-2.1 1.4-4.9 2.3-8.3 2.3-6.3 0-11.6-4.1-13.5-9.8l-7.9 6.1C6.5 42.6 14.6 48 24 48z"/></svg>
+      Continuar com Google
+    </button>
+    <div class="or">ou use e-mail e senha</div>
+    <form id="authForm">
       <div class="field"><label for="email">E-mail</label><input type="email" id="email" autocomplete="username" required></div>
       <div class="field"><label for="pass">Senha</label><input type="password" id="pass" autocomplete="current-password" minlength="6" required></div>
       <div class="actions">
@@ -329,7 +339,7 @@ dialog .actions{justify-content:flex-end;flex-wrap:wrap}
 
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-app.js";
-import { getAuth, onAuthStateChanged, signInWithEmailAndPassword, createUserWithEmailAndPassword, sendPasswordResetEmail, signOut } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-auth.js";
+import { getAuth, onAuthStateChanged, signInWithEmailAndPassword, createUserWithEmailAndPassword, sendPasswordResetEmail, signOut, GoogleAuthProvider, signInWithPopup, signInWithRedirect, getRedirectResult } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-auth.js";
 import { initializeFirestore, getFirestore, persistentLocalCache, persistentMultipleTabManager, collection, doc, setDoc, deleteDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js";
 import { firebaseConfig } from "./firebase-config.js";
 
@@ -425,6 +435,8 @@ import { firebaseConfig } from "./firebase-config.js";
     'auth/weak-password':'A senha precisa ter pelo menos 6 caracteres.',
     'auth/too-many-requests':'Muitas tentativas. Espere um pouco e tente de novo.',
     'auth/network-request-failed':'Sem conexão com a internet.',
+    'auth/unauthorized-domain':'Este endereço ainda não está autorizado no Firebase (Authentication → Configurações → Domínios autorizados).',
+    'auth/account-exists-with-different-credential':'Já existe uma conta com esse e-mail. Entre com e-mail e senha.',
     'auth/operation-not-allowed':'Ative o login por E-mail/senha no Firebase (Authentication → Sign-in method).'
   };
   function authErr(e){$('#authMsg').textContent=AUTH_ERR[e&&e.code]||('Não foi possível entrar ('+(e&&e.code||'erro')+').')}
@@ -462,6 +474,19 @@ import { firebaseConfig } from "./firebase-config.js";
       sendPasswordResetEmail(auth,em).then(function(){$('#authMsg').textContent='Enviamos um e-mail para redefinir a senha (veja também o spam).'}).catch(authErr);
     });
     $('#logoutBtn').addEventListener('click',function(){signOut(auth)});
+    $('#googleBtn').addEventListener('click',function(){
+      $('#authMsg').textContent='';
+      var provider=new GoogleAuthProvider();
+      provider.setCustomParameters({prompt:'select_account'});
+      signInWithPopup(auth,provider).catch(function(e){
+        if(e&&(e.code==='auth/popup-blocked'||e.code==='auth/operation-not-supported-in-this-environment')){
+          signInWithRedirect(auth,provider).catch(authErr);
+        }else if(e&&(e.code==='auth/popup-closed-by-user'||e.code==='auth/cancelled-popup-request')){
+          /* usuário fechou a janela: nada a mostrar */
+        }else{ authErr(e); }
+      });
+    });
+    getRedirectResult(auth).catch(authErr);
   }
 
   /* ---------- calculations ---------- */
