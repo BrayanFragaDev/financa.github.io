@@ -232,20 +232,38 @@ dialog form .actions{margin-top:6px}
 @media (max-width:360px){
   .tabs button{font-size:.82rem;padding:10px 2px}
 }
+
+.stats4{grid-template-columns:repeat(4,1fr)}
+@media (max-width:600px){.stats,.stats4{grid-template-columns:repeat(auto-fit,minmax(120px,1fr))}}
+.prevnote{margin-top:12px;display:flex;flex-wrap:wrap;gap:2px 12px;align-items:center}
+.prevnote .linkbtn{margin-top:0}
+.rules{background:var(--bg);border:1px solid var(--line);border-radius:10px;padding:12px;font-size:.76rem;line-height:1.45;overflow:auto;max-height:320px;white-space:pre;margin:10px 0}
+dialog h3{font-family:var(--display);font-weight:600;font-size:1rem;margin:16px 0 6px}
+.rowtools{display:flex;gap:6px;align-items:center}
+dialog .hist li{flex-wrap:wrap}
 </style>
 </head>
 <body>
-<p id="boot" class="hint" style="text-align:center;padding:60px 16px">Carregando…</p>
+<p id="boot" class="hint" style="text-align:center;padding:60px 16px"><span id="bootMsg">Carregando…</span><br><button type="button" class="btn" id="retryBtn" hidden style="margin-top:12px">Tentar de novo</button></p>
 
 <div class="panel setup" id="setup" hidden role="alert">
   <h2>Falta configurar o Firebase</h2>
   <p>Abra o arquivo <code>firebase-config.js</code> no seu repositório e cole nele as chaves do seu projeto Firebase (Configurações do projeto → Seus apps → Configuração do SDK).</p>
 </div>
 
+<div class="panel setup" id="rulesHelp" hidden role="alert" style="max-width:720px;border-color:var(--accent)">
+  <h2>Atualize as regras do Firestore (só uma vez)</h2>
+  <p>Esta versão compartilha a casa entre pessoas e precisa de regras novas. No console do Firebase abra <b>Firestore Database → Regras</b>, apague tudo, cole o texto abaixo e toque em <b>Publicar</b>. Depois volte aqui e toque em “Já publiquei”.</p>
+  <pre id="rulesText" class="rules" tabindex="0"></pre>
+  <div class="actions"><button type="button" class="btn" id="rulesCopy">Copiar regras</button><button type="button" class="btn primary" id="rulesRetry">Já publiquei</button></div>
+  <div class="hint" id="rulesMsg" role="status"></div>
+</div>
+
 <main class="authwrap" id="auth" hidden>
   <div class="panel authcard">
     <h1>Finanças da casa</h1>
     <p class="hint">Entre para ver seus lançamentos em qualquer aparelho.</p>
+    <p class="hint" id="inviteHint" hidden style="color:var(--accent);font-weight:600">Você recebeu um convite para uma casa compartilhada. Entre ou crie sua conta para aceitar.</p>
     <button type="button" class="gbtn" id="googleBtn" style="margin-top:14px">
       <svg viewBox="0 0 48 48" aria-hidden="true"><path fill="#EA4335" d="M24 9.5c3.5 0 6.6 1.2 9.1 3.6l6.8-6.8C35.8 2.4 30.3 0 24 0 14.6 0 6.5 5.4 2.6 13.2l7.9 6.1C12.4 13.6 17.7 9.5 24 9.5z"/><path fill="#4285F4" d="M46.5 24.5c0-1.6-.1-3.1-.4-4.5H24v9h12.7c-.6 3-2.2 5.5-4.7 7.2l7.6 5.9c4.4-4.1 6.9-10.1 6.9-17.6z"/><path fill="#FBBC05" d="M10.5 28.7c-.5-1.4-.8-3-.8-4.7s.3-3.2.8-4.7l-7.9-6.1C.9 16.4 0 20.1 0 24s.9 7.6 2.6 10.8l7.9-6.1z"/><path fill="#34A853" d="M24 48c6.5 0 11.9-2.1 15.9-5.8l-7.6-5.9c-2.1 1.4-4.9 2.3-8.3 2.3-6.3 0-11.6-4.1-13.5-9.8l-7.9 6.1C6.5 42.6 14.6 48 24 48z"/></svg>
       Continuar com Google
@@ -276,6 +294,7 @@ dialog form .actions{margin-top:6px}
       </div>
       <button type="button" class="btn" id="todayBtn">Hoje</button>
       <span class="sync" id="sync" role="status"></span>
+      <button type="button" class="btn" id="shareBtn">Compartilhar</button>
       <button type="button" class="btn" id="backupBtn">Backup</button>
       <button type="button" class="btn" id="themeBtn" aria-label="Alternar tema claro e escuro">Tema</button>
       <span class="who" id="who"></span>
@@ -294,21 +313,23 @@ dialog form .actions{margin-top:6px}
   <section class="hero" aria-labelledby="heroTitle">
     <div class="headline">
       <div>
-        <small id="heroTitle">Saldo previsto do mês</small>
+        <small id="heroTitle">Saldo previsto no fim do mês</small>
         <p class="big" id="balance">R$ 0,00</p>
       </div>
       <div class="nowbox">
-        <small>Em conta agora (recebido − pago)</small><br>
+        <small>Em conta agora (acumulado: recebido − pago)</small><br>
         <strong id="nowBalance">R$ 0,00</strong>
       </div>
     </div>
     <div class="flow" id="flow" role="img" aria-label="Distribuição da renda do mês"></div>
     <div class="legend" id="legend"></div>
-    <div class="stats">
+    <div class="stats stats4">
+      <div><div class="v" id="sPrev">R$ 0,00</div><div class="k">Saldo anterior</div></div>
       <div><div class="v inc" id="sInc">R$ 0,00</div><div class="k">Receitas</div></div>
       <div><div class="v exp" id="sExp">R$ 0,00</div><div class="k">Despesas</div></div>
       <div><div class="v" id="sPend">R$ 0,00</div><div class="k">Ainda a pagar</div></div>
     </div>
+    <div class="prevnote"><span class="hint" id="prevNote"></span><button type="button" class="linkbtn" id="openingBtn">Ajustar saldo inicial</button></div>
   </section>
 
   <div class="layout">
@@ -337,11 +358,20 @@ dialog form .actions{margin-top:6px}
           <label for="cat">Categoria</label>
           <select id="cat"></select>
         </div>
-        <div class="field" id="repeatField">
-          <label for="repeat">Repetir por quantos meses?</label>
-          <input type="number" id="repeat" min="1" max="36" value="1">
-          <div class="hint">Use para aluguel, parcelas e contas fixas. 1 = só neste mês.</div>
+        <div class="field" id="repModeField">
+          <label for="repMode">Repetição</label>
+          <select id="repMode">
+            <option value="once">Só neste mês</option>
+            <option value="months">Parcelado (por vários meses)</option>
+            <option value="forever">Todo mês (conta fixa)</option>
+          </select>
+          <div class="hint">“Todo mês” serve para aluguel, internet, assinaturas e salário: o app lança os próximos 12 meses e continua sozinho.</div>
         </div>
+        <div class="field" id="repeatField" hidden>
+          <label for="repeat">Quantos meses?</label>
+          <input type="number" id="repeat" min="1" max="36" value="1">
+        </div>
+        <label class="check" id="applyField" hidden><input type="checkbox" id="applyFuture"><span>Aplicar também aos próximos meses desta conta fixa</span></label>
         <label class="check"><input type="checkbox" id="paid"><span id="paidLabel">Já foi pago</span></label>
         <div class="actions">
           <button type="submit" class="btn primary" id="saveBtn">Adicionar lançamento</button>
@@ -374,6 +404,12 @@ dialog form .actions{margin-top:6px}
       <div class="legend"><span><i style="background:var(--inc)"></i>Receitas</span><span><i style="background:var(--exp)"></i>Despesas</span></div>
     </section>
   </div>
+
+  <section class="panel" style="margin-top:20px" aria-labelledby="recTitle">
+    <h2 id="recTitle">Contas fixas</h2>
+    <p class="hint" style="margin:-6px 0 12px">Para mudar o valor, edite o lançamento do mês e marque “Aplicar também aos próximos meses”.</p>
+    <ul class="items" id="recList"></ul>
+  </section>
   </div>
 
   <div id="view-loans" role="tabpanel" aria-labelledby="tab-loans" hidden>
@@ -572,17 +608,62 @@ dialog form .actions{margin-top:6px}
   </form>
 </dialog>
 
+<dialog id="shDlg" aria-labelledby="shTitle">
+  <h2 id="shTitle">Compartilhar a casa</h2>
+  <p class="hint">Quem entrar na casa vê e edita os mesmos lançamentos, empréstimos e investimentos, cada pessoa com o próprio login.</p>
+  <div class="field" style="margin-top:12px"><label for="hhName">Nome da casa</label><input type="text" id="hhName" maxlength="40"></div>
+  <h3>Pessoas</h3>
+  <ul class="hist" id="memList"></ul>
+  <h3>Convidar alguém</h3>
+  <p class="hint">Gere um link e envie pelo WhatsApp ou e-mail. Vale por 7 dias e só pode ser usado uma vez.</p>
+  <div class="actions" style="margin-top:8px;justify-content:flex-start"><button type="button" class="btn primary" id="invBtn">Gerar link de convite</button></div>
+  <div id="invOut" hidden style="margin-top:10px">
+    <input type="text" id="invLink" readonly aria-label="Link de convite" style="width:100%;padding:10px 12px;border:1px solid var(--line);border-radius:10px;background:var(--surface)">
+    <div class="actions" style="margin-top:8px;justify-content:flex-start"><button type="button" class="btn" id="invCopy">Copiar</button><button type="button" class="btn" id="invShare">Compartilhar</button></div>
+  </div>
+  <div id="legacyBox" hidden>
+    <h3>Dados antigos</h3>
+    <p class="hint">Encontrei dados da versão pessoal do app (antes de existir casa compartilhada). Você pode copiá-los para esta casa.</p>
+    <div class="actions" style="margin-top:8px;justify-content:flex-start"><button type="button" class="btn" id="legacyBtn">Importar meus dados antigos</button></div>
+  </div>
+  <div class="actions" style="margin-top:18px"><button type="button" class="btn" id="leaveBtn" hidden>Sair desta casa</button><button type="button" class="btn primary" id="shClose">Fechar</button></div>
+  <div class="hint" id="shMsg" role="status"></div>
+</dialog>
+
+<dialog id="joinDlg" aria-labelledby="joinTitle">
+  <h2 id="joinTitle">Convite para uma casa</h2>
+  <p id="joinText"></p>
+  <div class="actions"><button type="button" class="btn" id="joinNo">Agora não</button><button type="button" class="btn primary" id="joinYes">Entrar nessa casa</button></div>
+</dialog>
+
+<dialog id="opDlg" aria-labelledby="opTitle">
+  <form id="opForm" autocomplete="off">
+    <h2 id="opTitle">Saldo inicial</h2>
+    <p class="hint">Quanto você tinha em conta no <b>início</b> do mês escolhido. O app soma os meses seguintes a partir daí para mostrar o saldo anterior e o saldo em conta.</p>
+    <div class="row2">
+      <div class="field"><label for="opAmount">Saldo (R$)</label><input type="text" id="opAmount" inputmode="decimal" placeholder="0,00" required></div>
+      <div class="field"><label for="opMonth">No início de (AAAA-MM)</label><input type="month" id="opMonth" placeholder="2026-10" required></div>
+    </div>
+    <div class="actions">
+      <button type="button" class="btn" id="opClear" hidden>Remover</button>
+      <button type="button" class="btn" id="opCancel">Cancelar</button>
+      <button type="submit" class="btn primary">Salvar</button>
+    </div>
+    <div class="hint" id="opMsg" role="alert"></div>
+  </form>
+</dialog>
+
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-app.js";
 import { getAuth, onAuthStateChanged, signInWithEmailAndPassword, createUserWithEmailAndPassword, sendPasswordResetEmail, signOut, GoogleAuthProvider, signInWithPopup, signInWithRedirect, getRedirectResult } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-auth.js";
-import { initializeFirestore, getFirestore, persistentLocalCache, persistentMultipleTabManager, collection, doc, setDoc, deleteDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js";
+import { initializeFirestore, getFirestore, persistentLocalCache, persistentMultipleTabManager, collection, doc, setDoc, deleteDoc, onSnapshot, getDoc, getDocs, writeBatch, query, limit } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js";
 import { firebaseConfig } from "./firebase-config.js";
 
 (function(){
   var CATS_EXP=['Moradia','Mercado','Contas','Transporte','Saúde','Educação','Lazer','Empréstimos','Outros'];
   var CATS_INC=['Salário','Extra','Outros'];
   var KEY='financas-casa-v1', THEME_KEY='financas-casa-tema';
-  var state={tx:[],budgets:{},loans:[],invs:[]};
+  var state={tx:[],budgets:{},loans:[],invs:[],rec:[],settings:{}};
   var curMonth=monthKey(todayStr());
   var filter='todos', editingId=null, undoFn=null, toastTimer=null;
 
@@ -604,41 +685,104 @@ import { firebaseConfig } from "./firebase-config.js";
   function parseAmount(s){
     s=String(s).trim().replace(/[R$\s]/g,'');
     if(!s) return NaN;
+    var neg=s.charAt(0)==='-'; if(neg) s=s.slice(1);
     if(s.indexOf(',')>-1) s=s.replace(/\./g,'').replace(',','.');
     else if(/^\d{1,3}(\.\d{3})+$/.test(s)) s=s.replace(/\./g,'');
-    return parseFloat(s);
+    return neg?-parseFloat(s):parseFloat(s);
   }
   function r2(x){return Math.round(x*100)/100}
   function fmtNum(x){return r2(x).toFixed(2).replace('.',',')}
   function fmtDate(s){var p=s.split('-');return p[2]+'/'+p[1]+'/'+p[0]}
 
-  /* ---------- storage (Firebase) ---------- */
-  var busy=false, uid=null, unsubs=[], auth=null, fs=null;
+  /* ---------- storage (Firebase, casa compartilhada) ---------- */
+  var busy=false, uid=null, hid=null, me=null, unsubs=[], auth=null, fs=null, sessionId=0;
+  var txReady=false, recReady=false, sent={}, notice='', checking=false, bootAction=null, legacyAvail=false;
+  var hh={name:'',members:[]};
+  var INV_KEY='financas-casa-convite', INV_RE=/^[a-z0-9]{16,64}$/;
+  var RULES_TEXT=`rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function signedIn() { return request.auth != null; }
+
+    function isMember(hid) {
+      return signedIn() &&
+        exists(/databases/$(database)/documents/households/$(hid)/members/$(request.auth.uid));
+    }
+
+    // Dados pessoais: ponteiro da casa e dados da versao antiga do app
+    match /users/{uid} {
+      allow read, write: if signedIn() && request.auth.uid == uid;
+      match /{document=**} {
+        allow read, write: if signedIn() && request.auth.uid == uid;
+      }
+    }
+
+    // Convites: so le quem conhece o codigo; ninguem consegue listar
+    match /invites/{code} {
+      allow get: if signedIn();
+      allow list: if false;
+      allow create: if signedIn()
+        && isMember(request.resource.data.hid)
+        && request.resource.data.by == request.auth.uid;
+      allow delete: if signedIn() && isMember(resource.data.hid);
+    }
+
+    match /households/{hid} {
+      allow create: if signedIn() && hid == request.auth.uid;
+      allow read, update: if isMember(hid);
+
+      match /members/{mid} {
+        allow read: if signedIn() && (request.auth.uid == mid || isMember(hid));
+        allow create: if signedIn() && request.auth.uid == mid && (
+          mid == hid ||
+          (
+            request.resource.data.code is string &&
+            exists(/databases/$(database)/documents/invites/$(request.resource.data.code)) &&
+            get(/databases/$(database)/documents/invites/$(request.resource.data.code)).data.hid == hid &&
+            get(/databases/$(database)/documents/invites/$(request.resource.data.code)).data.expires > request.time.toMillis()
+          )
+        );
+        allow delete: if signedIn() && mid != hid &&
+          (request.auth.uid == mid || request.auth.uid == hid);
+      }
+
+      match /transactions/{id} { allow read, write: if isMember(hid); }
+      match /loans/{id} { allow read, write: if isMember(hid); }
+      match /investments/{id} { allow read, write: if isMember(hid); }
+      match /recurring/{id} { allow read, write: if isMember(hid); }
+      match /meta/{id} { allow read, write: if isMember(hid); }
+    }
+  }
+}
+`;
+
   function setSync(txt,cls){var el=$('#sync');el.textContent=txt;el.className='sync'+(cls?' '+cls:'')}
   function onWriteError(e){showToast('Não foi possível salvar'+(e&&e.code?' ('+e.code+')':'')+'. Confira a conexão e as regras do Firestore.')}
+  function hdoc(a,b){return doc(fs,'households',hid,a,b)}
+  function hcol(a){return collection(fs,'households',hid,a)}
 
-  function txBody(x){return {type:x.type,desc:x.desc,amount:x.amount,cat:x.cat,date:x.date,paid:!!x.paid}}
+  function txBody(x){
+    var b={type:x.type,desc:x.desc,amount:x.amount,cat:x.cat,date:x.date,paid:!!x.paid};
+    if(x.rec){b.rec=x.rec;b.recM=x.recM}
+    return b;
+  }
   /* Writes never wait for the server: offline, Firestore queues them and the snapshot updates at once. */
-  function putTx(x){
-    setDoc(doc(fs,'users',uid,'transactions',x.id),txBody(x)).catch(onWriteError);
-    return Promise.resolve();
-  }
-  function delTx(id){
-    deleteDoc(doc(fs,'users',uid,'transactions',id)).catch(onWriteError);
-    return Promise.resolve();
-  }
-  function saveBudgets(){
-    setDoc(doc(fs,'users',uid,'meta','budgets'),{values:state.budgets}).catch(onWriteError);
-    return Promise.resolve();
-  }
+  function putTx(x){setDoc(hdoc('transactions',x.id),txBody(x)).catch(onWriteError);return Promise.resolve()}
+  function delTx(id){deleteDoc(hdoc('transactions',id)).catch(onWriteError);return Promise.resolve()}
+  function saveBudgets(){setDoc(hdoc('meta','budgets'),{values:state.budgets}).catch(onWriteError);return Promise.resolve()}
+  function saveSettings(){setDoc(hdoc('meta','settings'),{openingAmount:state.settings.openingAmount,openingMonth:state.settings.openingMonth}).catch(onWriteError);return Promise.resolve()}
+  function clearSettings(){deleteDoc(hdoc('meta','settings')).catch(onWriteError);return Promise.resolve()}
   function loanBody(l){return {dir:l.dir,person:l.person,principal:l.principal,n:l.n,installment:l.installment||0,firstDue:l.firstDue,note:l.note||'',
     payments:(l.payments||[]).map(function(p){return {id:p.id,date:p.date,amount:p.amount,tx:!!p.tx}})}}
   function invBody(i){return {name:i.name,type:i.type,current:i.current,currentDate:i.currentDate,note:i.note||'',
     moves:(i.moves||[]).map(function(m){return {id:m.id,date:m.date,kind:m.kind,amount:m.amount}})}}
-  function putLoan(l){setDoc(doc(fs,'users',uid,'loans',l.id),loanBody(l)).catch(onWriteError);return Promise.resolve()}
-  function delLoan(id){deleteDoc(doc(fs,'users',uid,'loans',id)).catch(onWriteError);return Promise.resolve()}
-  function putInv(i){setDoc(doc(fs,'users',uid,'investments',i.id),invBody(i)).catch(onWriteError);return Promise.resolve()}
-  function delInv(id){deleteDoc(doc(fs,'users',uid,'investments',id)).catch(onWriteError);return Promise.resolve()}
+  function recBody(r){return {type:r.type,desc:r.desc,amount:r.amount,cat:r.cat,startDate:r.startDate,endMonth:r.endMonth||null,skips:r.skips||[]}}
+  function putLoan(l){setDoc(hdoc('loans',l.id),loanBody(l)).catch(onWriteError);return Promise.resolve()}
+  function delLoan(id){deleteDoc(hdoc('loans',id)).catch(onWriteError);return Promise.resolve()}
+  function putInv(i){setDoc(hdoc('investments',i.id),invBody(i)).catch(onWriteError);return Promise.resolve()}
+  function delInv(id){deleteDoc(hdoc('investments',id)).catch(onWriteError);return Promise.resolve()}
+  function putRec(r){setDoc(hdoc('recurring',r.id),recBody(r)).catch(onWriteError);return Promise.resolve()}
   async function attempt(fn){
     try{ await fn(); return true; }
     catch(e){ showToast('Não foi possível salvar. Tente de novo.'); return false; }
@@ -650,40 +794,77 @@ import { firebaseConfig } from "./firebase-config.js";
     return ['Sincronizado','ok'];
   }
   function subscribe(){
-    var txCol=collection(fs,'users',uid,'transactions');
-    unsubs.push(onSnapshot(txCol,function(snap){
-      state.tx=snap.docs.map(function(d){var v=d.data();return {id:d.id,type:v.type,desc:v.desc,amount:v.amount,cat:v.cat,date:v.date,paid:!!v.paid}})
+    var my=sessionId;
+    function live(fn){return function(a){if(my===sessionId) fn(a)}}
+    function onErr(err){
+      if(my!==sessionId) return;
+      if(err&&err.code==='permission-denied') checkMembership();
+      else setSync('Sem conexão com a nuvem');
+    }
+    unsubs.push(onSnapshot(hcol('transactions'),live(function(snap){
+      state.tx=snap.docs.map(function(d){var v=d.data();return {id:d.id,type:v.type,desc:v.desc,amount:v.amount,cat:v.cat,date:v.date,paid:!!v.paid,rec:v.rec||null,recM:v.recM||null}})
         .filter(function(x){return (x.type==='despesa'||x.type==='receita')&&typeof x.amount==='number'&&x.date});
+      if(!snap.metadata.fromCache) txReady=true;
       var l=syncLabel(snap); setSync(l[0],l[1]);
       render();
-    },function(err){
-      setSync(err&&err.code==='permission-denied'?'Sem permissão: confira as regras do Firestore':'Sem conexão com a nuvem');
-    }));
-    unsubs.push(onSnapshot(doc(fs,'users',uid,'meta','budgets'),function(d){
+    }),onErr));
+    unsubs.push(onSnapshot(hdoc('meta','budgets'),live(function(d){
       state.budgets=d.exists()?((d.data()||{}).values||{}):{};
       render();
-    },function(){}));
-    unsubs.push(onSnapshot(collection(fs,'users',uid,'loans'),function(snap){
+    }),function(){}));
+    unsubs.push(onSnapshot(hdoc('meta','settings'),live(function(d){
+      var v=d.exists()?(d.data()||{}):{};
+      state.settings=(typeof v.openingAmount==='number'&&/^\d{4}-\d{2}$/.test(v.openingMonth||''))?{openingAmount:v.openingAmount,openingMonth:v.openingMonth}:{};
+      render();
+    }),function(){}));
+    unsubs.push(onSnapshot(hcol('recurring'),live(function(snap){
+      state.rec=snap.docs.map(function(d){var v=d.data();return {id:d.id,type:v.type,desc:v.desc||'',amount:v.amount,cat:v.cat,startDate:v.startDate,endMonth:v.endMonth||null,skips:Array.isArray(v.skips)?v.skips:[]}})
+        .filter(function(r){return (r.type==='despesa'||r.type==='receita')&&typeof r.amount==='number'&&r.startDate});
+      if(!snap.metadata.fromCache) recReady=true;
+      render();
+    }),function(){}));
+    unsubs.push(onSnapshot(hcol('loans'),live(function(snap){
       state.loans=snap.docs.map(function(d){var v=d.data();return {id:d.id,dir:v.dir,person:v.person||'',principal:v.principal,n:v.n||1,installment:v.installment||0,firstDue:v.firstDue,note:v.note||'',
         payments:(Array.isArray(v.payments)?v.payments:[]).filter(function(p){return p&&p.id&&p.date&&typeof p.amount==='number'})}})
         .filter(function(l){return (l.dir==='devo'||l.dir==='receber')&&typeof l.principal==='number'&&l.firstDue});
       render();
-    },function(){}));
-    unsubs.push(onSnapshot(collection(fs,'users',uid,'investments'),function(snap){
+    }),function(){}));
+    unsubs.push(onSnapshot(hcol('investments'),live(function(snap){
       state.invs=snap.docs.map(function(d){var v=d.data();return {id:d.id,name:v.name||'',type:v.type||'Outros',current:typeof v.current==='number'?v.current:0,currentDate:v.currentDate||todayStr(),note:v.note||'',
         moves:(Array.isArray(v.moves)?v.moves:[]).filter(function(m){return m&&m.id&&m.date&&typeof m.amount==='number'&&(m.kind==='aporte'||m.kind==='resgate')})}});
       render();
-    },function(){}));
+    }),function(){}));
+    unsubs.push(onSnapshot(hcol('members'),live(function(snap){
+      hh.members=snap.docs.map(function(d){var v=d.data()||{};return {id:d.id,email:v.email||'',role:v.role||'member'}});
+      renderShare();
+    }),function(){}));
+    unsubs.push(onSnapshot(doc(fs,'households',hid),live(function(d){
+      hh.name=d.exists()?((d.data()||{}).name||'Minha casa'):'Minha casa';
+      renderShare();
+    }),function(){}));
   }
   function unsubscribe(){
     unsubs.forEach(function(u){try{u()}catch(e){}});
-    unsubs=[];
-    state={tx:[],budgets:{},loans:[],invs:[]};
+    unsubs=[]; txReady=false; recReady=false; sent={};
+    hh={name:'',members:[]}; legacyAvail=false;
+    state={tx:[],budgets:{},loans:[],invs:[],rec:[],settings:{}};
   }
   window.addEventListener('online',function(){setSync('Sincronizando…')});
   window.addEventListener('offline',function(){setSync('Offline: salva ao reconectar')});
 
-  /* ---------- auth ---------- */
+  /* ---------- convites pendentes (link ?convite=CODIGO) ---------- */
+  function pendingInvite(){try{var c=localStorage.getItem(INV_KEY);return c&&INV_RE.test(c)?c:null}catch(e){return null}}
+  function setPendingInvite(c){try{if(c) localStorage.setItem(INV_KEY,c); else localStorage.removeItem(INV_KEY)}catch(e){}}
+  (function captureInvite(){
+    try{
+      var p=new URLSearchParams(location.search).get('convite');
+      if(p===null) return;
+      if(INV_RE.test(p)) setPendingInvite(p);
+      history.replaceState(null,'',location.pathname+location.hash);
+    }catch(e){}
+  })();
+
+  /* ---------- auth + sessão da casa ---------- */
   var AUTH_ERR={
     'auth/invalid-credential':'E-mail ou senha incorretos.',
     'auth/wrong-password':'E-mail ou senha incorretos.',
@@ -698,24 +879,150 @@ import { firebaseConfig } from "./firebase-config.js";
     'auth/operation-not-allowed':'Ative o login por E-mail/senha no Firebase (Authentication → Sign-in method).'
   };
   function authErr(e){$('#authMsg').textContent=AUTH_ERR[e&&e.code]||('Não foi possível entrar ('+(e&&e.code||'erro')+').')}
-  function showAuth(){$('#boot').hidden=true;$('#app').hidden=true;$('#auth').hidden=false}
-  function showApp(u){$('#boot').hidden=true;$('#auth').hidden=true;$('#app').hidden=false;$('#who').textContent=u.email||''}
+  function hideAll(){['#boot','#auth','#app','#rulesHelp','#setup'].forEach(function(s){$(s).hidden=true})}
+  function showBoot(msg,label,action){
+    hideAll(); $('#boot').hidden=false; $('#bootMsg').textContent=msg;
+    var b=$('#retryBtn'); b.hidden=!label; if(label){b.textContent=label; bootAction=action}
+  }
+  function showAuth(){hideAll(); $('#auth').hidden=false; $('#inviteHint').hidden=!pendingInvite()}
+  function showApp(u){hideAll(); $('#app').hidden=false; $('#who').textContent=u.email||''}
+  function showRules(){hideAll(); $('#rulesText').textContent=RULES_TEXT; $('#rulesHelp').hidden=false}
+  $('#retryBtn').addEventListener('click',function(){if(bootAction) bootAction()});
+
+  function askJoin(hname,hasOwn){
+    return new Promise(function(resolve){
+      var done=false;
+      function fin(v){ if(done) return; done=true; closeDlg('#joinDlg'); resolve(v) }
+      $('#joinText').textContent='Você foi convidado para a casa “'+hname+'”. Quem entra vê e edita os mesmos lançamentos, empréstimos e investimentos.'+(hasOwn?' Seus dados atuais continuam guardados na sua casa anterior.':'');
+      $('#joinYes').onclick=function(){fin(true)};
+      $('#joinNo').onclick=function(){fin(false)};
+      $('#joinNo').textContent=hasOwn?'Continuar na minha casa':'Criar minha própria casa';
+      $('#joinDlg').oncancel=function(e){e.preventDefault();fin(false)};
+      showDlg('#joinDlg');
+    });
+  }
+  async function readInvite(code){
+    var d=await getDoc(doc(fs,'invites',code));
+    if(!d.exists()) return null;
+    var v=d.data()||{};
+    if(!v.hid||!(v.expires>Date.now())) return null;
+    return {hid:v.hid,hname:v.hname||'uma casa'};
+  }
+  async function joinHousehold(code,inv){
+    await setDoc(doc(fs,'households',inv.hid,'members',uid),{email:me.email||'',role:'member',joinedAt:Date.now(),code:code});
+    await setDoc(doc(fs,'users',uid),{hid:inv.hid},{merge:true});
+    try{await deleteDoc(doc(fs,'invites',code))}catch(e){}
+  }
+  async function createHousehold(){
+    var mm=await getDoc(doc(fs,'households',uid,'members',uid));
+    if(!mm.exists()){
+      await setDoc(doc(fs,'households',uid),{name:'Minha casa',createdAt:Date.now()});
+      await setDoc(doc(fs,'households',uid,'members',uid),{email:me.email||'',role:'owner',joinedAt:Date.now()});
+    }
+    await setDoc(doc(fs,'users',uid),{hid:uid},{merge:true});
+    hid=uid;
+    try{ await importLegacy(); }catch(e){ /* botão "Importar dados antigos" fica disponível em Compartilhar */ }
+  }
+  async function importLegacy(){
+    var ops=[], names=['transactions','loans','investments'], i;
+    for(i=0;i<names.length;i++){
+      var snap=await getDocs(collection(fs,'users',uid,names[i]));
+      snap.docs.forEach(function(d){ops.push({ref:hdoc(names[i],d.id),data:d.data()})});
+    }
+    var b=await getDoc(doc(fs,'users',uid,'meta','budgets'));
+    if(b.exists()) ops.push({ref:hdoc('meta','budgets'),data:b.data()});
+    for(i=0;i<ops.length;i+=400){
+      var batch=writeBatch(fs);
+      ops.slice(i,i+400).forEach(function(o){batch.set(o.ref,o.data)});
+      await batch.commit();
+    }
+    await setDoc(doc(fs,'users',uid),{legacyImported:true},{merge:true});
+    legacyAvail=false;
+    return ops.length;
+  }
+  async function checkLegacy(){
+    var my=sessionId;
+    try{
+      var us=await getDoc(doc(fs,'users',uid));
+      if(us.exists()&&(us.data()||{}).legacyImported) return;
+      var names=['transactions','loans','investments'];
+      for(var i=0;i<names.length;i++){
+        var s=await getDocs(query(collection(fs,'users',uid,names[i]),limit(1)));
+        if(my!==sessionId) return;
+        if(!s.empty){legacyAvail=true;break}
+      }
+      renderShare();
+    }catch(e){}
+  }
+  async function checkMembership(){
+    if(checking||!hid) return;
+    checking=true;
+    var my=sessionId;
+    try{
+      var m=await getDoc(doc(fs,'households',hid,'members',uid));
+      if(my!==sessionId) return;
+      if(!m.exists()) showRemoved(); else setSync('Sem permissão: confira as regras do Firestore');
+    }catch(e){
+      if(my===sessionId) setSync('Sem permissão: confira as regras do Firestore');
+    }finally{checking=false}
+  }
+  function showRemoved(){
+    unsubscribe();
+    showBoot('Você não faz mais parte desta casa.','Criar minha própria casa',async function(){
+      try{await deleteDoc(doc(fs,'users',uid))}catch(e){}
+      location.reload();
+    });
+  }
+  async function startSession(u){
+    unsubscribe();
+    var s=++sessionId;
+    me=u; uid=u.uid; hid=null; notice='';
+    showBoot('Carregando…');
+    try{
+      var us=await getDoc(doc(fs,'users',uid));
+      if(s!==sessionId) return;
+      var ud=us.exists()?(us.data()||{}):{};
+      var code=pendingInvite(), inv=null;
+      if(code){
+        inv=await readInvite(code);
+        if(s!==sessionId) return;
+        setPendingInvite(null);
+        if(!inv) notice='Convite inválido ou expirado.';
+      }
+      var target=ud.hid||null;
+      if(inv&&inv.hid!==target){
+        var yes=await askJoin(inv.hname,!!target);
+        if(s!==sessionId) return;
+        if(yes){ await joinHousehold(code,inv); target=inv.hid; notice='Você entrou na casa “'+inv.hname+'”.'; }
+      }
+      if(!target){ await createHousehold(); target=uid; }
+      if(s!==sessionId) return;
+      hid=target;
+      showApp(u); setSync('Conectando…'); subscribe(); render();
+      if(notice) showToast(notice);
+      checkLegacy();
+    }catch(e){
+      if(s!==sessionId) return;
+      if(e&&e.code==='permission-denied') showRules();
+      else showBoot('Não foi possível carregar seus dados. Confira a internet.','Tentar de novo',function(){startSession(u)});
+    }
+  }
 
   function startFirebase(){
     var bad=!firebaseConfig||!firebaseConfig.apiKey||String(firebaseConfig.apiKey).indexOf('COLE')>-1||!firebaseConfig.projectId;
-    if(bad){$('#boot').hidden=true;$('#setup').hidden=false;return}
+    if(bad){hideAll();$('#setup').hidden=false;return}
     try{
       var app=initializeApp(firebaseConfig);
       auth=getAuth(app);
       try{ fs=initializeFirestore(app,{localCache:persistentLocalCache({tabManager:persistentMultipleTabManager()})}); }
       catch(e){ fs=getFirestore(app); }
     }catch(e){
-      $('#boot').textContent='Não foi possível iniciar o Firebase. Confira o arquivo firebase-config.js.';
+      showBoot('Não foi possível iniciar o Firebase. Confira o arquivo firebase-config.js.');
       return;
     }
     onAuthStateChanged(auth,function(u){
-      if(u){ uid=u.uid; showApp(u); setSync('Conectando…'); subscribe(); render(); }
-      else{ uid=null; unsubscribe(); showAuth(); render(); }
+      if(u){ startSession(u); }
+      else{ sessionId++; uid=null; hid=null; me=null; unsubscribe(); showAuth(); render(); }
     });
     $('#authForm').addEventListener('submit',function(e){
       e.preventDefault(); $('#authMsg').textContent='';
@@ -763,9 +1070,15 @@ import { firebaseConfig } from "./firebase-config.js";
     var list=monthTx(curMonth), t=totals(list);
     $('#monthLabel').textContent=monthName(curMonth,{month:'long',year:'numeric'});
 
-    var bal=t.inc-t.exp;
+    ensureRecurring();
+    var sums=monthSums(), op=openingInfo(sums), carry=carryFor(curMonth,sums,op);
+    var bal=r2(carry+t.inc-t.exp);
     var b=$('#balance'); b.textContent=brl.format(bal); b.classList.toggle('neg',bal<0);
-    $('#nowBalance').textContent=brl.format(t.incPaid-t.expPaid);
+    $('#nowBalance').textContent=brl.format(cashNow(sums,op));
+    var sp=$('#sPrev'); sp.textContent=brl.format(carry); sp.className='v'+(carry>0?' gain-pos':carry<0?' gain-neg':'');
+    $('#prevNote').textContent=op.custom
+      ? 'Saldo inicial de '+brl.format(op.amount)+' em '+monthName(op.month,{month:'long',year:'numeric'})+'.'
+      : (op.month ? 'Soma desde '+monthName(op.month,{month:'long',year:'numeric'})+', começando em R$ 0,00.' : 'Sem lançamentos ainda.');
     $('#sInc').textContent=brl.format(t.inc);
     $('#sExp').textContent=brl.format(t.exp);
     $('#sPend').textContent=brl.format(t.exp-t.expPaid);
@@ -775,8 +1088,8 @@ import { firebaseConfig } from "./firebase-config.js";
     $('#flow').innerHTML='<span class="paid" style="width:'+pPaid+'%"></span><span class="pend" style="width:'+pPend+'%"></span><span class="free" style="width:'+pFree+'%"></span>';
     var lg='<span><i style="background:var(--exp)"></i>Pago <b>'+brl.format(t.expPaid)+'</b></span>'+
       '<span><i style="background:repeating-linear-gradient(135deg,var(--exp) 0 3px,var(--exp-soft) 3px 6px)"></i>A pagar <b>'+brl.format(t.exp-t.expPaid)+'</b></span>';
-    if(t.exp>t.inc) lg+='<span style="color:var(--exp)"><b>Despesas acima das receitas em '+brl.format(t.exp-t.inc)+'</b></span>';
-    else lg+='<span><i style="background:var(--inc)"></i>Sobra <b>'+brl.format(t.inc-t.exp)+'</b></span>';
+    if(t.exp>t.inc) lg+='<span style="color:var(--exp)"><b>Despesas acima das receitas do mês em '+brl.format(t.exp-t.inc)+'</b></span>';
+    else lg+='<span><i style="background:var(--inc)"></i>Sobra do mês <b>'+brl.format(t.inc-t.exp)+'</b></span>';
     $('#legend').innerHTML=lg;
 
     renderList(list);
@@ -784,6 +1097,7 @@ import { firebaseConfig } from "./firebase-config.js";
     renderHistory();
     renderLoans();
     renderInv();
+    renderRec();
   }
 
   function renderList(list){
@@ -810,7 +1124,7 @@ import { firebaseConfig } from "./firebase-config.js";
       var cls='mini'+(x.paid?' on':(late?' late':''));
       return '<li>'+
         '<div class="day">'+d[2]+'<small>'+monthName(x.date.slice(0,7),{month:'short'}).replace('.','')+'</small></div>'+
-        '<div><div class="desc">'+esc(x.desc)+'</div><div class="meta"><span>'+esc(x.cat)+'</span></div></div>'+
+        '<div><div class="desc">'+esc(x.desc)+'</div><div class="meta"><span>'+esc(x.cat)+'</span>'+(x.rec?'<span>↻ conta fixa</span>':'')+'</div></div>'+
         '<div class="amt '+(isExp?'exp':'inc')+'">'+(isExp?'− ':'+ ')+brl.format(x.amount)+'</div>'+
         '<div class="ops">'+
           '<button type="button" class="'+cls+'" data-act="paid" data-id="'+x.id+'" aria-pressed="'+(x.paid?'true':'false')+'">'+paidTxt+'</button>'+
@@ -870,6 +1184,10 @@ import { firebaseConfig } from "./firebase-config.js";
     var t=todayStr();
     return monthKey(t)===curMonth?t:curMonth+'-01';
   }
+  function setRepMode(m){
+    $('#repMode').value=m;
+    $('#repeatField').hidden=m!=='months';
+  }
   function resetForm(){
     editingId=null;
     $('#form').reset();
@@ -879,7 +1197,10 @@ import { firebaseConfig } from "./firebase-config.js";
     $('#formTitle').textContent='Novo lançamento';
     $('#saveBtn').textContent='Adicionar lançamento';
     $('#cancelBtn').hidden=true;
-    $('#repeatField').hidden=false;
+    $('#repModeField').hidden=false;
+    setRepMode('once');
+    $('#applyField').hidden=true;
+    $('#applyFuture').checked=false;
     $('#formMsg').textContent='';
   }
   function startEdit(id){
@@ -894,12 +1215,16 @@ import { firebaseConfig } from "./firebase-config.js";
     $('#formTitle').textContent='Editar lançamento';
     $('#saveBtn').textContent='Salvar alterações';
     $('#cancelBtn').hidden=false;
+    $('#repModeField').hidden=true;
     $('#repeatField').hidden=true;
+    $('#applyField').hidden=!x.rec;
+    $('#applyFuture').checked=false;
     $('#formMsg').textContent='';
     $('#form').scrollIntoView({behavior:'smooth',block:'center'});
     $('#desc').focus();
   }
 
+  $('#repMode').addEventListener('change',function(){setRepMode($('#repMode').value)});
   $('#form').addEventListener('submit',async function(e){
     e.preventDefault();
     if(busy) return;
@@ -912,12 +1237,46 @@ import { firebaseConfig } from "./firebase-config.js";
     busy=true; $('#saveBtn').disabled=true;
 
     if(editingId){
-      var ok=await attempt(function(){return putTx({id:editingId,type:type,desc:desc,amount:amount,cat:cat,date:date,paid:paid})});
+      var ex=state.tx.filter(function(t){return t.id===editingId})[0];
+      var upd=Object.assign({},ex||{id:editingId},{type:type,desc:desc,amount:amount,cat:cat,date:date,paid:paid});
+      var applyF=!!(ex&&ex.rec&&$('#applyFuture').checked);
+      var ok=await attempt(async function(){
+        await putTx(upd);
+        if(applyF){
+          var r=state.rec.filter(function(q){return q.id===ex.rec})[0];
+          if(r) await putRec(Object.assign({},r,{desc:desc,amount:amount,cat:cat}));
+          var fut=state.tx.filter(function(t){return t.rec===ex.rec&&t.recM>ex.recM&&!t.paid});
+          for(var i=0;i<fut.length;i++) await putTx(Object.assign({},fut[i],{desc:desc,amount:amount,cat:cat}));
+        }
+      });
       busy=false; $('#saveBtn').disabled=false;
-      if(ok){curMonth=monthKey(date); resetForm(); render(); showToast('Alterações salvas');}
+      if(ok){curMonth=monthKey(date); resetForm(); render(); showToast(applyF?'Salvo neste mês e nos próximos não pagos':'Alterações salvas');}
       return;
     }
-    var n=Math.max(1,Math.min(36,parseInt($('#repeat').value,10)||1));
+
+    var mode=$('#repMode').value;
+    if(mode==='forever'){
+      var rec={id:newId(),type:type,desc:desc,amount:amount,cat:cat,startDate:date,endMonth:null,skips:[]};
+      var m0=monthKey(date);
+      var ok3=await attempt(async function(){
+        sent[rec.id+'|'+m0]=1;
+        await putRec(rec);
+        await putTx({id:occId(rec.id,m0),type:type,desc:desc,amount:amount,cat:cat,date:date,paid:paid,rec:rec.id,recM:m0});
+      });
+      busy=false; $('#saveBtn').disabled=false;
+      if(ok3){
+        state.rec=state.rec.concat([rec]);
+        var keep3=type;
+        resetForm();
+        document.getElementById(keep3==='despesa'?'t-exp':'t-inc').checked=true; fillCats();
+        render();
+        showToast('Conta fixa criada. Os próximos 12 meses já foram lançados.');
+        $('#desc').focus();
+      }
+      return;
+    }
+
+    var n=mode==='months'?Math.max(1,Math.min(36,parseInt($('#repeat').value,10)||1)):1;
     var ok2=await attempt(async function(){
       for(var i=0;i<n;i++){
         await putTx({id:newId(),type:type,desc:n>1?desc+' ('+(i+1)+'/'+n+')':desc,amount:amount,cat:cat,date:addMonths(date,i),paid:i===0?paid:false});
@@ -942,15 +1301,24 @@ import { firebaseConfig } from "./firebase-config.js";
     var id=btn.getAttribute('data-id'), act=btn.getAttribute('data-act');
     var x=state.tx.filter(function(t){return t.id===id})[0]; if(!x) return;
     if(act==='paid'){
-      var upd={id:x.id,type:x.type,desc:x.desc,amount:x.amount,cat:x.cat,date:x.date,paid:!x.paid};
+      var upd=Object.assign({},x,{paid:!x.paid});
       await attempt(function(){return putTx(upd)}); render();
     }else if(act==='edit'){
       startEdit(id);
     }else if(act==='del'){
       var removed=x;
       if(editingId===id) resetForm();
-      var ok=await attempt(function(){return delTx(id)}); render();
-      if(ok) showToast('Lançamento excluído',function(){attempt(function(){return putTx(removed)}).then(render)});
+      var ok=await attempt(async function(){
+        if(removed.rec) await skipOcc(removed);
+        await delTx(id);
+      });
+      render();
+      if(ok) showToast('Lançamento excluído'+(removed.rec?' (só deste mês)':''),function(){
+        attempt(async function(){
+          if(removed.rec) await unskipOcc(removed);
+          await putTx(removed);
+        }).then(render);
+      });
     }
   });
   document.querySelectorAll('.chip').forEach(function(c){
@@ -1017,6 +1385,18 @@ import { firebaseConfig } from "./firebase-config.js";
         await saveBudgets();
       }
     });
+    if(ok&&Array.isArray(p.rec)){
+      var okR=await attempt(async function(){
+        for(var c=0;c<p.rec.length;c++){var rr=p.rec[c];
+          if(rr&&rr.id&&rr.startDate&&typeof rr.amount==='number'&&(rr.type==='despesa'||rr.type==='receita')){rr.skips=Array.isArray(rr.skips)?rr.skips:[];await putRec(rr)}}
+      });
+      ok=ok&&okR;
+    }
+    if(ok&&p.settings&&typeof p.settings.openingAmount==='number'&&/^\d{4}-\d{2}$/.test(p.settings.openingMonth||'')){
+      state.settings={openingAmount:p.settings.openingAmount,openingMonth:p.settings.openingMonth};
+      var okS=await attempt(saveSettings);
+      ok=ok&&okS;
+    }
     var nl=0, ni=0;
     if(ok&&Array.isArray(p.loans)){
       var okL=await attempt(async function(){
@@ -1460,6 +1840,216 @@ import { firebaseConfig } from "./firebase-config.js";
     var ok=await attempt(function(){return putInv(upd)});
     if(ok){closeDlg('#mvDlg'); render(); showToast(k==='aporte'?'Aporte registrado':k==='resgate'?'Resgate registrado':'Valor atualizado')}
   });
+
+  /* ---------- saldo acumulado ---------- */
+  function monthSums(){
+    var m={};
+    state.tx.forEach(function(x){
+      var k=monthKey(x.date), o=m[k]||(m[k]={inc:0,exp:0,incPaid:0,expPaid:0});
+      if(x.type==='receita'){o.inc+=x.amount; if(x.paid) o.incPaid+=x.amount}
+      else{o.exp+=x.amount; if(x.paid) o.expPaid+=x.amount}
+    });
+    return m;
+  }
+  function openingInfo(sums){
+    var st=state.settings||{}, custom=typeof st.openingAmount==='number'&&!!st.openingMonth;
+    var months=Object.keys(sums).sort();
+    return {custom:custom, month:custom?st.openingMonth:(months[0]||null), amount:custom?st.openingAmount:0};
+  }
+  function carryFor(key,sums,op){
+    if(!op.month||key<op.month) return 0;
+    var bal=op.amount;
+    Object.keys(sums).forEach(function(m){if(m>=op.month&&m<key) bal+=sums[m].inc-sums[m].exp});
+    return r2(bal);
+  }
+  function cashNow(sums,op){
+    if(!op.month) return 0;
+    var bal=op.amount;
+    Object.keys(sums).forEach(function(m){if(m>=op.month) bal+=sums[m].incPaid-sums[m].expPaid});
+    return r2(bal);
+  }
+  $('#openingBtn').addEventListener('click',function(){
+    var op=openingInfo(monthSums());
+    $('#opAmount').value=op.custom?fmtNum(op.amount):'';
+    $('#opMonth').value=op.month||monthKey(todayStr());
+    $('#opClear').hidden=!op.custom;
+    $('#opMsg').textContent='';
+    showDlg('#opDlg');
+    $('#opAmount').focus();
+  });
+  $('#opCancel').addEventListener('click',function(){closeDlg('#opDlg')});
+  $('#opClear').addEventListener('click',async function(){
+    state.settings={};
+    var ok=await attempt(clearSettings);
+    if(ok){closeDlg('#opDlg'); render(); showToast('Saldo inicial removido')}
+  });
+  $('#opForm').addEventListener('submit',async function(e){
+    e.preventDefault();
+    var amt=parseAmount($('#opAmount').value), month=$('#opMonth').value.trim();
+    if(isNaN(amt)){$('#opMsg').textContent='Informe o saldo, como 2500,00.';return}
+    if(!/^\d{4}-(0[1-9]|1[0-2])$/.test(month)){$('#opMsg').textContent='Informe o mês no formato AAAA-MM, como 2026-10.';return}
+    state.settings={openingAmount:r2(amt),openingMonth:month};
+    var ok=await attempt(saveSettings);
+    if(ok){closeDlg('#opDlg'); render(); showToast('Saldo inicial salvo')}
+  });
+
+  /* ---------- contas fixas (recorrentes) ---------- */
+  function occId(recId,m){return 'r_'+recId+'_'+m.replace('-','')}
+  function monthDiff(a,b){var p=a.split('-').map(Number),q=b.split('-').map(Number);return (q[0]-p[0])*12+(q[1]-p[1])}
+  function ensureRecurring(){
+    if(!(txReady&&recReady)||!uid||!hid) return;
+    var upTo=shiftMonth(monthKey(todayStr()),12);
+    if(curMonth>upTo) upTo=curMonth;
+    var have={};
+    state.tx.forEach(function(x){if(x.rec) have[x.rec+'|'+x.recM]=1});
+    state.rec.forEach(function(r){
+      var m0=monthKey(r.startDate), m=m0, guard=0;
+      while(m<=upTo&&guard++<600){
+        var key=r.id+'|'+m;
+        if((!r.endMonth||m<=r.endMonth)&&r.skips.indexOf(m)<0&&!have[key]&&!sent[key]){
+          sent[key]=1;
+          putTx({id:occId(r.id,m),type:r.type,desc:r.desc,amount:r.amount,cat:r.cat,date:addMonths(r.startDate,monthDiff(m0,m)),paid:false,rec:r.id,recM:m});
+        }
+        m=shiftMonth(m,1);
+      }
+    });
+  }
+  function skipOcc(x){
+    var r=state.rec.filter(function(q){return q.id===x.rec})[0]; if(!r) return Promise.resolve();
+    if(r.skips.indexOf(x.recM)<0) r.skips=r.skips.concat([x.recM]);
+    sent[r.id+'|'+x.recM]=1;
+    return putRec(r);
+  }
+  function unskipOcc(x){
+    var r=state.rec.filter(function(q){return q.id===x.rec})[0]; if(!r) return Promise.resolve();
+    r.skips=r.skips.filter(function(m){return m!==x.recM});
+    sent[r.id+'|'+x.recM]=1;
+    return putRec(r);
+  }
+  function renderRec(){
+    var ul=$('#recList');
+    var rows=state.rec.slice().sort(function(a,b){
+      var ae=a.endMonth?1:0, be=b.endMonth?1:0;
+      if(ae!==be) return ae-be;
+      return a.desc<b.desc?-1:a.desc>b.desc?1:0;
+    });
+    if(!rows.length){
+      ul.innerHTML='<li class="empty">Nenhuma conta fixa ainda. Ao lançar, escolha “Todo mês (conta fixa)” em Repetição.</li>';
+      return;
+    }
+    ul.innerHTML=rows.map(function(r){
+      var dev=r.type==='despesa', ended=!!r.endMonth;
+      return '<li class="item">'+
+        '<div class="head"><span class="nm">'+esc(r.desc)+'</span><span class="tag '+(ended?'':(dev?'dev':'rec'))+'">'+(ended?'Encerrada':(dev?'Despesa':'Receita'))+'</span></div>'+
+        '<div class="sub">'+esc(r.cat)+' · todo dia '+r.startDate.slice(8,10)+' · desde '+esc(monthName(monthKey(r.startDate),{month:'short',year:'numeric'}).replace('.',''))+
+          (ended?' · até '+esc(monthName(r.endMonth,{month:'short',year:'numeric'}).replace('.','')):'')+'</div>'+
+        '<div class="num">'+brl.format(r.amount)+'</div>'+
+        (ended?'':'<div class="ops"><button type="button" class="mini del" data-act="rend" data-id="'+r.id+'">Encerrar</button></div>')+
+      '</li>';
+    }).join('');
+  }
+  $('#recList').addEventListener('click',async function(e){
+    var btn=e.target.closest('button[data-act=rend]'); if(!btn) return;
+    var r=state.rec.filter(function(q){return q.id===btn.getAttribute('data-id')})[0]; if(!r) return;
+    if(!window.confirm('Encerrar “'+r.desc+'”? Os meses já lançados ficam. Os próximos meses ainda não pagos serão removidos.')) return;
+    var cm=monthKey(todayStr());
+    var fut=state.tx.filter(function(t){return t.rec===r.id&&t.recM>cm&&!t.paid});
+    r.endMonth=cm;                       /* estado local primeiro: evita recriar os meses apagados */
+    fut.forEach(function(t){sent[r.id+'|'+t.recM]=1});
+    var upd=Object.assign({},r);
+    var ok=await attempt(async function(){
+      await putRec(upd);
+      for(var i=0;i<fut.length;i++) await delTx(fut[i].id);
+    });
+    render();
+    if(ok) showToast('Conta fixa encerrada');
+  });
+
+  /* ---------- compartilhar a casa ---------- */
+  function renderShare(){
+    if(!hid) return;
+    var inp=$('#hhName'); if(document.activeElement!==inp) inp.value=hh.name||'';
+    var mem=hh.members.slice().sort(function(a,b){
+      return ((a.role==='owner'?0:1)-(b.role==='owner'?0:1))||a.email.localeCompare(b.email);
+    });
+    $('#memList').innerHTML=mem.length?mem.map(function(m){
+      var you=m.id===uid, owner=m.role==='owner';
+      return '<li><span>'+esc(m.email||'(sem e-mail)')+(you?' <span class="sub">(você)</span>':'')+'</span>'+
+        '<span class="rowtools"><span class="tag">'+(owner?'Dono':'Membro')+'</span>'+
+        (uid===hid&&!you?'<button type="button" class="mini del" data-mid="'+esc(m.id)+'">Remover</button>':'')+'</span></li>';
+    }).join(''):'<li class="none">Carregando…</li>';
+    $('#leaveBtn').hidden=uid===hid;
+    $('#legacyBox').hidden=!legacyAvail;
+  }
+  $('#shareBtn').addEventListener('click',function(){
+    renderShare();
+    $('#invOut').hidden=true; $('#shMsg').textContent='';
+    showDlg('#shDlg');
+  });
+  $('#shClose').addEventListener('click',function(){closeDlg('#shDlg')});
+  $('#hhName').addEventListener('change',function(){
+    var v=$('#hhName').value.trim()||'Minha casa';
+    hh.name=v;
+    setDoc(doc(fs,'households',hid),{name:v},{merge:true}).catch(onWriteError);
+  });
+  $('#invBtn').addEventListener('click',async function(){
+    $('#invBtn').disabled=true; $('#shMsg').textContent='';
+    try{
+      var arr=new Uint8Array(20); crypto.getRandomValues(arr);
+      var code=Array.prototype.map.call(arr,function(b){return (b%36).toString(36)}).join('');
+      await setDoc(doc(fs,'invites',code),{hid:hid,hname:hh.name||'Minha casa',by:uid,expires:Date.now()+7*864e5});
+      var link=location.origin+location.pathname+'?convite='+code;
+      $('#invLink').value=link;
+      $('#invOut').hidden=false;
+      $('#invShare').hidden=!navigator.share;
+    }catch(e){
+      $('#shMsg').textContent='Não foi possível gerar o convite ('+((e&&e.code)||'erro')+'). Confira a internet e as regras do Firestore.';
+    }
+    $('#invBtn').disabled=false;
+  });
+  $('#invCopy').addEventListener('click',function(){
+    var el=$('#invLink'); el.focus(); el.select();
+    var done=function(ok){$('#shMsg').textContent=ok?'Link copiado.':'Link selecionado. Use Ctrl+C (ou toque e segure) para copiar.'};
+    if(navigator.clipboard&&navigator.clipboard.writeText){
+      navigator.clipboard.writeText(el.value).then(function(){done(true)},function(){var ok=false;try{ok=document.execCommand('copy')}catch(e){}done(ok)});
+    }else{var ok=false;try{ok=document.execCommand('copy')}catch(e){}done(ok)}
+  });
+  $('#invShare').addEventListener('click',function(){
+    if(!navigator.share) return;
+    navigator.share({title:'Finanças da casa',text:'Entre na nossa casa no app de finanças:',url:$('#invLink').value}).catch(function(){});
+  });
+  $('#memList').addEventListener('click',async function(e){
+    var btn=e.target.closest('button[data-mid]'); if(!btn) return;
+    var mid=btn.getAttribute('data-mid');
+    var m=hh.members.filter(function(x){return x.id===mid})[0];
+    if(!window.confirm('Remover '+(m&&m.email?m.email:'esta pessoa')+' da casa? Ela perde o acesso aos lançamentos.')) return;
+    var ok=await attempt(function(){return deleteDoc(doc(fs,'households',hid,'members',mid))});
+    if(ok) $('#shMsg').textContent='Pessoa removida.';
+  });
+  $('#leaveBtn').addEventListener('click',async function(){
+    if(!window.confirm('Sair desta casa? Você deixa de ver estes lançamentos e volta para a sua própria casa.')) return;
+    try{
+      await deleteDoc(doc(fs,'households',hid,'members',uid));
+      await deleteDoc(doc(fs,'users',uid));
+      location.reload();
+    }catch(e){$('#shMsg').textContent='Não foi possível sair agora ('+((e&&e.code)||'erro')+').'}
+  });
+  $('#legacyBtn').addEventListener('click',async function(){
+    if(!window.confirm('Copiar para esta casa os dados que você tinha na versão pessoal do app? Itens com o mesmo código serão sobrescritos.')) return;
+    $('#legacyBtn').disabled=true; $('#shMsg').textContent='Importando…';
+    try{
+      var n=await importLegacy();
+      $('#shMsg').textContent='Importados '+n+' registros.';
+      renderShare();
+    }catch(e){$('#shMsg').textContent='Não foi possível importar ('+((e&&e.code)||'erro')+').'}
+    $('#legacyBtn').disabled=false;
+  });
+  $('#rulesCopy').addEventListener('click',function(){
+    var done=function(ok){$('#rulesMsg').textContent=ok?'Regras copiadas.':'Selecione o texto e copie manualmente.'};
+    if(navigator.clipboard&&navigator.clipboard.writeText) navigator.clipboard.writeText(RULES_TEXT).then(function(){done(true)},function(){done(false)});
+    else done(false);
+  });
+  $('#rulesRetry').addEventListener('click',function(){location.reload()});
 
   /* ---------- theme ---------- */
   function applyTheme(t){if(t) document.documentElement.setAttribute('data-theme',t)}
