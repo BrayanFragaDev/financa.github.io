@@ -630,6 +630,24 @@ dialog .hist li{flex-wrap:wrap}
   <div class="hint" id="shMsg" role="status"></div>
 </dialog>
 
+<dialog id="recDlg" aria-labelledby="recDlgTitle">
+  <form id="recForm" autocomplete="off">
+    <h2 id="recDlgTitle">Editar conta fixa</h2>
+    <div class="field"><label for="recDesc">Nome</label><input type="text" id="recDesc" maxlength="80" required></div>
+    <div class="row2">
+      <div class="field"><label for="recAmount">Valor (R$)</label><input type="text" id="recAmount" inputmode="decimal" required></div>
+      <div class="field"><label for="recCat">Categoria</label><select id="recCat"></select></div>
+    </div>
+    <label class="check"><input type="checkbox" id="recFuture" checked><span>Atualizar também os lançamentos de hoje em diante que ainda não foram pagos</span></label>
+    <p class="hint">Meses já pagos ou já passados não mudam.</p>
+    <div class="actions">
+      <button type="button" class="btn" id="recCancel">Cancelar</button>
+      <button type="submit" class="btn primary">Salvar</button>
+    </div>
+    <div class="hint" id="recMsg" role="alert"></div>
+  </form>
+</dialog>
+
 <dialog id="joinDlg" aria-labelledby="joinTitle">
   <h2 id="joinTitle">Convite para uma casa</h2>
   <p id="joinText"></p>
@@ -1944,25 +1962,76 @@ service cloud.firestore {
         '<div class="sub">'+esc(r.cat)+' · todo dia '+r.startDate.slice(8,10)+' · desde '+esc(monthName(monthKey(r.startDate),{month:'short',year:'numeric'}).replace('.',''))+
           (ended?' · até '+esc(monthName(r.endMonth,{month:'short',year:'numeric'}).replace('.','')):'')+'</div>'+
         '<div class="num">'+brl.format(r.amount)+'</div>'+
-        (ended?'':'<div class="ops"><button type="button" class="mini del" data-act="rend" data-id="'+r.id+'">Encerrar</button></div>')+
+        '<div class="ops">'+
+          (ended?'<button type="button" class="btn primary" data-act="rreopen" data-id="'+r.id+'">Reabrir</button>'
+                :'<button type="button" class="mini del" data-act="rend" data-id="'+r.id+'">Encerrar</button>')+
+          '<button type="button" class="mini" data-act="redit" data-id="'+r.id+'">Editar</button>'+
+        '</div>'+
       '</li>';
     }).join('');
   }
+  var editingRec=null;
+  function fillRecCats(r){
+    var cats=(r.type==='despesa'?CATS_EXP:CATS_INC).slice();
+    if(cats.indexOf(r.cat)<0) cats.push(r.cat);
+    $('#recCat').innerHTML=cats.map(function(c){return '<option'+(c===r.cat?' selected':'')+'>'+esc(c)+'</option>'}).join('');
+  }
   $('#recList').addEventListener('click',async function(e){
-    var btn=e.target.closest('button[data-act=rend]'); if(!btn) return;
+    var btn=e.target.closest('button[data-act]'); if(!btn) return;
+    var act=btn.getAttribute('data-act');
     var r=state.rec.filter(function(q){return q.id===btn.getAttribute('data-id')})[0]; if(!r) return;
-    if(!window.confirm('Encerrar “'+r.desc+'”? Os meses já lançados ficam. Os próximos meses ainda não pagos serão removidos.')) return;
     var cm=monthKey(todayStr());
-    var fut=state.tx.filter(function(t){return t.rec===r.id&&t.recM>cm&&!t.paid});
-    r.endMonth=cm;                       /* estado local primeiro: evita recriar os meses apagados */
-    fut.forEach(function(t){sent[r.id+'|'+t.recM]=1});
+    if(act==='rend'){
+      if(!window.confirm('Encerrar “'+r.desc+'”? Os meses já lançados ficam. Os próximos meses ainda não pagos serão removidos. Você pode reabrir depois.')) return;
+      var fut=state.tx.filter(function(t){return t.rec===r.id&&t.recM>cm&&!t.paid});
+      r.endMonth=cm;                       /* estado local primeiro: evita recriar os meses apagados */
+      fut.forEach(function(t){sent[r.id+'|'+t.recM]=1});
+      var upd=Object.assign({},r);
+      var ok=await attempt(async function(){
+        await putRec(upd);
+        for(var i=0;i<fut.length;i++) await delTx(fut[i].id);
+      });
+      render();
+      if(ok) showToast('Conta fixa encerrada. Toque em Reabrir se foi engano.');
+    }else if(act==='rreopen'){
+      var oldEnd=r.endMonth||'';
+      r.endMonth=null;
+      Object.keys(sent).forEach(function(k){
+        if(k.indexOf(r.id+'|')===0&&k.slice(r.id.length+1)>oldEnd) delete sent[k];
+      });
+      var upd2=Object.assign({},r);
+      var ok2=await attempt(function(){return putRec(upd2)});
+      render();
+      if(ok2) showToast('Conta fixa reaberta. Os próximos meses foram lançados de novo.');
+    }else if(act==='redit'){
+      editingRec=r.id;
+      $('#recDesc').value=r.desc;
+      $('#recAmount').value=fmtNum(r.amount);
+      fillRecCats(r);
+      $('#recFuture').checked=true;
+      $('#recMsg').textContent='';
+      showDlg('#recDlg');
+      $('#recDesc').focus();
+    }
+  });
+  $('#recCancel').addEventListener('click',function(){closeDlg('#recDlg')});
+  $('#recForm').addEventListener('submit',async function(e){
+    e.preventDefault();
+    var r=state.rec.filter(function(q){return q.id===editingRec})[0];
+    if(!r){closeDlg('#recDlg');return}
+    var desc=$('#recDesc').value.trim(), amt=parseAmount($('#recAmount').value), cat=$('#recCat').value;
+    if(!desc){$('#recMsg').textContent='Escreva um nome.';return}
+    if(!(amt>0)){$('#recMsg').textContent='Informe um valor maior que zero, como 1500,00.';return}
+    amt=r2(amt);
+    var cm=monthKey(todayStr()), applyNow=$('#recFuture').checked;
+    var fut=applyNow?state.tx.filter(function(t){return t.rec===r.id&&t.recM>=cm&&!t.paid}):[];
+    r.desc=desc; r.amount=amt; r.cat=cat;
     var upd=Object.assign({},r);
     var ok=await attempt(async function(){
       await putRec(upd);
-      for(var i=0;i<fut.length;i++) await delTx(fut[i].id);
+      for(var i=0;i<fut.length;i++) await putTx(Object.assign({},fut[i],{desc:desc,amount:amt,cat:cat}));
     });
-    render();
-    if(ok) showToast('Conta fixa encerrada');
+    if(ok){closeDlg('#recDlg'); render(); showToast(applyNow?'Conta fixa atualizada (este mês e próximos não pagos)':'Conta fixa atualizada')}
   });
 
   /* ---------- compartilhar a casa ---------- */
