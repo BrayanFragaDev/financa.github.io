@@ -648,6 +648,19 @@ dialog .hist li{flex-wrap:wrap}
   </form>
 </dialog>
 
+<dialog id="recDelDlg" aria-labelledby="recDelTitle">
+  <form id="recDelForm">
+    <h2 id="recDelTitle">Excluir conta fixa</h2>
+    <p class="hint" id="recDelText"></p>
+    <label class="check" style="align-items:flex-start;margin-top:12px"><input type="radio" name="rdm" value="future" checked style="margin-top:3px"><span>Excluir a conta e os <b id="rdFutureN">0</b> lançamentos ainda não pagos de hoje em diante. Os outros <b id="rdKeepN">0</b> ficam como lançamentos comuns (histórico).</span></label>
+    <label class="check" style="align-items:flex-start"><input type="radio" name="rdm" value="all" style="margin-top:3px"><span>Excluir a conta e <b>todos</b> os <b id="rdAllN">0</b> lançamentos, inclusive os já pagos e os de meses passados. Os saldos dos meses anteriores mudam.</span></label>
+    <div class="actions">
+      <button type="button" class="btn" id="recDelCancel">Cancelar</button>
+      <button type="submit" class="btn primary">Excluir</button>
+    </div>
+  </form>
+</dialog>
+
 <dialog id="joinDlg" aria-labelledby="joinTitle">
   <h2 id="joinTitle">Convite para uma casa</h2>
   <p id="joinText"></p>
@@ -801,6 +814,7 @@ service cloud.firestore {
   function putInv(i){setDoc(hdoc('investments',i.id),invBody(i)).catch(onWriteError);return Promise.resolve()}
   function delInv(id){deleteDoc(hdoc('investments',id)).catch(onWriteError);return Promise.resolve()}
   function putRec(r){setDoc(hdoc('recurring',r.id),recBody(r)).catch(onWriteError);return Promise.resolve()}
+  function delRec(id){deleteDoc(hdoc('recurring',id)).catch(onWriteError);return Promise.resolve()}
   async function attempt(fn){
     try{ await fn(); return true; }
     catch(e){ showToast('Não foi possível salvar. Tente de novo.'); return false; }
@@ -1966,11 +1980,12 @@ service cloud.firestore {
           (ended?'<button type="button" class="btn primary" data-act="rreopen" data-id="'+r.id+'">Reabrir</button>'
                 :'<button type="button" class="mini del" data-act="rend" data-id="'+r.id+'">Encerrar</button>')+
           '<button type="button" class="mini" data-act="redit" data-id="'+r.id+'">Editar</button>'+
+          '<button type="button" class="mini del" data-act="rdel" data-id="'+r.id+'">Excluir</button>'+
         '</div>'+
       '</li>';
     }).join('');
   }
-  var editingRec=null;
+  var editingRec=null, delRecId=null;
   function fillRecCats(r){
     var cats=(r.type==='despesa'?CATS_EXP:CATS_INC).slice();
     if(cats.indexOf(r.cat)<0) cats.push(r.cat);
@@ -2003,6 +2018,16 @@ service cloud.firestore {
       var ok2=await attempt(function(){return putRec(upd2)});
       render();
       if(ok2) showToast('Conta fixa reaberta. Os próximos meses foram lançados de novo.');
+    }else if(act==='rdel'){
+      delRecId=r.id;
+      var mine=state.tx.filter(function(t){return t.rec===r.id});
+      var futU=mine.filter(function(t){return t.recM>=cm&&!t.paid});
+      $('#recDelText').textContent='“'+r.desc+'” tem '+mine.length+(mine.length===1?' lançamento':' lançamentos')+' no app. O que você quer fazer?';
+      $('#rdFutureN').textContent=String(futU.length);
+      $('#rdKeepN').textContent=String(mine.length-futU.length);
+      $('#rdAllN').textContent=String(mine.length);
+      document.querySelector('input[name=rdm][value=future]').checked=true;
+      showDlg('#recDelDlg');
     }else if(act==='redit'){
       editingRec=r.id;
       $('#recDesc').value=r.desc;
@@ -2032,6 +2057,35 @@ service cloud.firestore {
       for(var i=0;i<fut.length;i++) await putTx(Object.assign({},fut[i],{desc:desc,amount:amt,cat:cat}));
     });
     if(ok){closeDlg('#recDlg'); render(); showToast(applyNow?'Conta fixa atualizada (este mês e próximos não pagos)':'Conta fixa atualizada')}
+  });
+
+  $('#recDelCancel').addEventListener('click',function(){closeDlg('#recDelDlg')});
+  $('#recDelForm').addEventListener('submit',async function(e){
+    e.preventDefault();
+    var r=state.rec.filter(function(q){return q.id===delRecId})[0];
+    if(!r){closeDlg('#recDelDlg');return}
+    var mode=document.querySelector('input[name=rdm]:checked').value, cm=monthKey(todayStr());
+    var mine=state.tx.filter(function(t){return t.rec===r.id});
+    var isFut=function(t){return t.recM>=cm&&!t.paid};
+    var removed=mode==='all'?mine:mine.filter(isFut);
+    var kept=mode==='all'?[]:mine.filter(function(t){return !isFut(t)});
+    var ruleCopy=Object.assign({},r,{skips:r.skips.slice()});
+    if(editingId&&removed.some(function(t){return t.id===editingId})) resetForm();
+    state.rec=state.rec.filter(function(q){return q.id!==r.id});     /* estado local primeiro */
+    var ok=await attempt(async function(){
+      await delRec(r.id);
+      for(var i=0;i<removed.length;i++) await delTx(removed[i].id);
+      for(var j=0;j<kept.length;j++) await putTx(Object.assign({},kept[j],{rec:null,recM:null}));
+    });
+    closeDlg('#recDelDlg'); render();
+    if(ok) showToast('Conta fixa excluída',function(){
+      attempt(async function(){
+        mine.forEach(function(t){sent[r.id+'|'+t.recM]=1});
+        state.rec=state.rec.concat([ruleCopy]);
+        await putRec(ruleCopy);
+        for(var i=0;i<mine.length;i++) await putTx(mine[i]);
+      }).then(render);
+    });
   });
 
   /* ---------- compartilhar a casa ---------- */
