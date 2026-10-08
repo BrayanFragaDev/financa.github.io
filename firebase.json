@@ -7,7 +7,10 @@
       "_config.yml",
       "README*",
       "**/.*",
-      "**/node_modules/**"
+      "**/.*/**",
+      "**/node_modules/**",
+      "package.json",
+      "package-lock.json"
     ],
     "headers": [
       { "source": "/sw.js", "headers": [{ "key": "Cache-Control", "value": "no-cache" }] },
