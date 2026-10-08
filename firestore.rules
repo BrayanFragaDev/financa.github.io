@@ -1,0 +1,56 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function signedIn() { return request.auth != null; }
+
+    function isMember(hid) {
+      return signedIn() &&
+        exists(/databases/$(database)/documents/households/$(hid)/members/$(request.auth.uid));
+    }
+
+    // Dados pessoais: ponteiro da casa e dados da versao antiga do app
+    match /users/{uid} {
+      allow read, write: if signedIn() && request.auth.uid == uid;
+      match /{document=**} {
+        allow read, write: if signedIn() && request.auth.uid == uid;
+      }
+    }
+
+    // Convites: so le quem conhece o codigo; ninguem consegue listar
+    match /invites/{code} {
+      allow get: if signedIn();
+      allow list: if false;
+      allow create: if signedIn()
+        && isMember(request.resource.data.hid)
+        && request.resource.data.by == request.auth.uid;
+      allow delete: if signedIn() && isMember(resource.data.hid);
+    }
+
+    match /households/{hid} {
+      allow create: if signedIn() && hid == request.auth.uid;
+      allow read, update: if isMember(hid);
+
+      match /members/{mid} {
+        allow read: if signedIn() && (request.auth.uid == mid || isMember(hid));
+        allow create: if signedIn() && request.auth.uid == mid && (
+          mid == hid ||
+          (
+            request.resource.data.code is string &&
+            exists(/databases/$(database)/documents/invites/$(request.resource.data.code)) &&
+            get(/databases/$(database)/documents/invites/$(request.resource.data.code)).data.hid == hid &&
+            get(/databases/$(database)/documents/invites/$(request.resource.data.code)).data.expires > request.time.toMillis()
+          )
+        );
+        allow delete: if signedIn() && mid != hid &&
+          (request.auth.uid == mid || request.auth.uid == hid);
+      }
+
+      match /transactions/{id} { allow read, write: if isMember(hid); }
+      match /loans/{id} { allow read, write: if isMember(hid); }
+      match /investments/{id} { allow read, write: if isMember(hid); }
+      match /recurring/{id} { allow read, write: if isMember(hid); }
+      match /meta/{id} { allow read, write: if isMember(hid); }
+    }
+  }
+}

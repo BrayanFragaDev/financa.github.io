@@ -3,15 +3,15 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Finanças da casa</title>
+<title>Lar em Dia</title>
 <meta name="theme-color" content="#2A4BD7">
-<meta name="description" content="Controle das finanças da casa: receitas, despesas, contas a pagar e limites por categoria.">
+<meta name="description" content="Lar em Dia: as finanças da família em um só lugar. Receitas, despesas, contas fixas, empréstimos e investimentos.">
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" type="image/png" href="icon-192.png">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-title" content="Finanças">
+<meta name="apple-mobile-web-app-title" content="Lar em Dia">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -261,7 +261,7 @@ dialog .hist li{flex-wrap:wrap}
 
 <main class="authwrap" id="auth" hidden>
   <div class="panel authcard">
-    <h1>Finanças da casa</h1>
+    <h1>Lar em Dia</h1>
     <p class="hint">Entre para ver seus lançamentos em qualquer aparelho.</p>
     <p class="hint" id="inviteHint" hidden style="color:var(--accent);font-weight:600">Você recebeu um convite para uma casa compartilhada. Entre ou crie sua conta para aceitar.</p>
     <button type="button" class="gbtn" id="googleBtn" style="margin-top:14px">
@@ -285,7 +285,7 @@ dialog .hist li{flex-wrap:wrap}
 <div class="wrap" id="app" hidden>
 
   <header class="top">
-    <h1>Finanças da casa</h1>
+    <h1>Lar em Dia</h1>
     <div class="tools">
       <div class="monthnav" id="monthNav" role="group" aria-label="Escolher mês">
         <button type="button" id="prev" aria-label="Mês anterior">‹</button>
@@ -2139,7 +2139,7 @@ service cloud.firestore {
   });
   $('#invShare').addEventListener('click',function(){
     if(!navigator.share) return;
-    navigator.share({title:'Finanças da casa',text:'Entre na nossa casa no app de finanças:',url:$('#invLink').value}).catch(function(){});
+    navigator.share({title:'Lar em Dia',text:'Entre na nossa casa no Lar em Dia:',url:$('#invLink').value}).catch(function(){});
   });
   $('#memList').addEventListener('click',async function(e){
     var btn=e.target.closest('button[data-mid]'); if(!btn) return;
