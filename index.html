@@ -187,6 +187,51 @@ dialog .actions{justify-content:flex-end;flex-wrap:wrap}
 @media (prefers-reduced-motion:reduce){
   .flow span,.bar b{transition:none}
 }
+
+[hidden]{display:none!important}
+.tabs{display:flex;gap:6px;background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:4px;margin-bottom:20px}
+.tabs button{flex:1;border:0;background:none;padding:10px 4px;border-radius:10px;cursor:pointer;font-weight:600;font-size:.95rem;color:var(--muted)}
+.tabs button:hover{color:var(--ink)}
+.tabs button[aria-selected="true"]{background:var(--accent);color:var(--accent-ink)}
+.fchip{border:1px solid var(--line);background:none;border-radius:999px;padding:5px 12px;cursor:pointer;font-size:.88rem}
+.fchip[aria-pressed="true"]{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+.seg input[value="devo"]:checked+label{color:var(--exp)}
+.seg input[value="receber"]:checked+label{color:var(--inc)}
+.gain-pos{color:var(--inc)} .gain-neg{color:var(--exp)}
+.stats .v{overflow-wrap:anywhere}
+.items{list-style:none;margin:0;padding:0;display:grid;gap:12px}
+.item{border:1px solid var(--line);border-radius:14px;padding:14px;background:var(--surface)}
+.item .head{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap}
+.item .nm{font-weight:600;overflow-wrap:anywhere}
+.item .num{font-family:var(--display);font-weight:600;font-size:1.5rem;margin-top:6px;line-height:1.1}
+.item .sub{color:var(--muted);font-size:.85rem;overflow-wrap:anywhere}
+.item .sub.warn{color:var(--warn);font-weight:600}
+.item .bar{margin:10px 0 4px}
+.kv{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:8px 14px;margin:10px 0}
+.kv .k{font-size:.78rem;color:var(--muted)}
+.kv .v{font-weight:600}
+.kv .v.late{color:var(--exp)}
+.tag{font-size:.75rem;border-radius:99px;padding:2px 10px;border:1px solid var(--line);color:var(--muted);white-space:nowrap}
+.tag.dev{background:var(--exp-soft);color:var(--exp);border-color:var(--exp)}
+.tag.rec,.tag.ok{background:var(--inc-soft);color:var(--inc);border-color:var(--inc)}
+.item .ops{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px}
+.item details{margin-top:10px}
+.item summary{cursor:pointer;color:var(--accent);font-size:.88rem}
+.hist{list-style:none;margin:8px 0 0;padding:0}
+.hist li{display:flex;justify-content:space-between;align-items:center;gap:8px;padding:6px 0;border-top:1px solid var(--line);font-size:.88rem}
+.hist .none{color:var(--muted);border-top:0}
+.layout.rev{margin-top:0}
+dialog .row2{margin-top:8px}
+dialog form .actions{margin-top:6px}
+@media (max-width:860px){
+  .layout.rev>:first-child{order:2}
+}
+@media (max-width:480px){
+  .stats{grid-template-columns:repeat(auto-fit,minmax(120px,1fr))}
+}
+@media (max-width:360px){
+  .tabs button{font-size:.82rem;padding:10px 2px}
+}
 </style>
 </head>
 <body>
@@ -224,7 +269,7 @@ dialog .actions{justify-content:flex-end;flex-wrap:wrap}
   <header class="top">
     <h1>Finanças da casa</h1>
     <div class="tools">
-      <div class="monthnav" role="group" aria-label="Escolher mês">
+      <div class="monthnav" id="monthNav" role="group" aria-label="Escolher mês">
         <button type="button" id="prev" aria-label="Mês anterior">‹</button>
         <span class="label" id="monthLabel" aria-live="polite"></span>
         <button type="button" id="next" aria-label="Próximo mês">›</button>
@@ -237,6 +282,14 @@ dialog .actions{justify-content:flex-end;flex-wrap:wrap}
       <button type="button" class="btn" id="logoutBtn">Sair</button>
     </div>
   </header>
+
+  <nav class="tabs" role="tablist" aria-label="Seções do app">
+    <button type="button" role="tab" id="tab-home" aria-selected="true" aria-controls="view-home">Casa</button>
+    <button type="button" role="tab" id="tab-loans" aria-selected="false" aria-controls="view-loans" tabindex="-1">Empréstimos</button>
+    <button type="button" role="tab" id="tab-inv" aria-selected="false" aria-controls="view-inv" tabindex="-1">Investimentos</button>
+  </nav>
+
+  <div id="view-home" role="tabpanel" aria-labelledby="tab-home">
 
   <section class="hero" aria-labelledby="heroTitle">
     <div class="headline">
@@ -321,6 +374,149 @@ dialog .actions{justify-content:flex-end;flex-wrap:wrap}
       <div class="legend"><span><i style="background:var(--inc)"></i>Receitas</span><span><i style="background:var(--exp)"></i>Despesas</span></div>
     </section>
   </div>
+  </div>
+
+  <div id="view-loans" role="tabpanel" aria-labelledby="tab-loans" hidden>
+    <section class="hero" aria-label="Resumo dos empréstimos">
+      <div class="headline">
+        <div>
+          <small>Eu devo (saldo em aberto)</small>
+          <p class="big neg" id="lDevo">R$ 0,00</p>
+        </div>
+        <div class="nowbox">
+          <small>Me devem (saldo em aberto)</small><br>
+          <strong id="lRec">R$ 0,00</strong>
+        </div>
+      </div>
+      <div class="stats">
+        <div><div class="v" id="lNet">R$ 0,00</div><div class="k">Saldo líquido (me devem − eu devo)</div></div>
+        <div><div class="v" id="lOpen">0</div><div class="k">Em aberto</div></div>
+        <div><div class="v" id="lNext">—</div><div class="k" id="lNextK">Próximo vencimento</div></div>
+      </div>
+    </section>
+
+    <div class="layout rev">
+      <section class="panel" aria-labelledby="lfTitle">
+        <h2 id="lfTitle">Novo empréstimo</h2>
+        <form id="lForm" autocomplete="off">
+          <div class="seg" role="radiogroup" aria-label="Tipo de empréstimo">
+            <input type="radio" name="ldir" id="l-dev" value="devo" checked><label for="l-dev">Eu devo</label>
+            <input type="radio" name="ldir" id="l-rec" value="receber"><label for="l-rec">Me devem</label>
+          </div>
+          <div class="field">
+            <label for="lPerson">Com quem (pessoa ou banco)</label>
+            <input type="text" id="lPerson" maxlength="60" placeholder="Ex.: Banco, financiamento" required>
+          </div>
+          <div class="row2">
+            <div class="field">
+              <label for="lPrincipal">Valor emprestado (R$)</label>
+              <input type="text" id="lPrincipal" inputmode="decimal" placeholder="0,00" required>
+            </div>
+            <div class="field">
+              <label for="lFirst">1º vencimento</label>
+              <input type="date" id="lFirst" required>
+            </div>
+          </div>
+          <div class="row2">
+            <div class="field">
+              <label for="lN">Nº de parcelas</label>
+              <input type="number" id="lN" min="1" max="360" value="1">
+            </div>
+            <div class="field">
+              <label for="lInst">Valor da parcela (R$)</label>
+              <input type="text" id="lInst" inputmode="decimal" placeholder="Opcional">
+            </div>
+          </div>
+          <div class="hint" style="margin:-4px 0 12px">Se há juros, informe o valor da parcela cobrada. Em branco, o app divide o valor emprestado em partes iguais.</div>
+          <div class="field">
+            <label for="lNote">Observação (opcional)</label>
+            <input type="text" id="lNote" maxlength="120">
+          </div>
+          <div class="actions">
+            <button type="submit" class="btn primary" id="lSave">Adicionar empréstimo</button>
+            <button type="button" class="btn" id="lCancel" hidden>Cancelar</button>
+          </div>
+          <div class="hint" id="lMsg" role="alert"></div>
+        </form>
+      </section>
+
+      <section class="panel" aria-labelledby="llTitle">
+        <h2 id="llTitle">Seus empréstimos</h2>
+        <div class="filters" role="group" aria-label="Filtrar empréstimos">
+          <button type="button" class="fchip" data-lf="aberto" aria-pressed="true">Em aberto</button>
+          <button type="button" class="fchip" data-lf="quitado" aria-pressed="false">Quitados</button>
+          <button type="button" class="fchip" data-lf="todos" aria-pressed="false">Todos</button>
+        </div>
+        <ul class="items" id="lList"></ul>
+      </section>
+    </div>
+  </div>
+
+  <div id="view-inv" role="tabpanel" aria-labelledby="tab-inv" hidden>
+    <section class="hero" aria-label="Resumo dos investimentos">
+      <div class="headline">
+        <div>
+          <small>Valor atual dos investimentos</small>
+          <p class="big" id="iTotal">R$ 0,00</p>
+        </div>
+        <div class="nowbox">
+          <small>Rendimento total</small><br>
+          <strong id="iGain">R$ 0,00</strong>
+        </div>
+      </div>
+      <div class="stats">
+        <div><div class="v" id="iAp">R$ 0,00</div><div class="k">Total aplicado</div></div>
+        <div><div class="v" id="iRs">R$ 0,00</div><div class="k">Já resgatado</div></div>
+        <div><div class="v" id="iPct">—</div><div class="k">Rentabilidade</div></div>
+      </div>
+    </section>
+
+    <div class="layout rev">
+      <section class="panel" aria-labelledby="ifTitle">
+        <h2 id="ifTitle">Novo investimento</h2>
+        <form id="iForm" autocomplete="off">
+          <div class="field">
+            <label for="iName">Nome</label>
+            <input type="text" id="iName" maxlength="60" placeholder="Ex.: Tesouro Selic, CDB Banco X" required>
+          </div>
+          <div class="field">
+            <label for="iType">Tipo</label>
+            <select id="iType"></select>
+          </div>
+          <div class="row2" id="iAmtRow">
+            <div class="field">
+              <label for="iAmount">Valor aplicado (R$)</label>
+              <input type="text" id="iAmount" inputmode="decimal" placeholder="0,00">
+            </div>
+            <div class="field">
+              <label for="iDate">Data</label>
+              <input type="date" id="iDate">
+            </div>
+          </div>
+          <div class="field">
+            <label for="iNote">Observação (opcional)</label>
+            <input type="text" id="iNote" maxlength="120" placeholder="Ex.: vence em 2029, liquidez diária">
+          </div>
+          <div class="hint" id="iHelp" style="margin:-4px 0 12px">Depois use <b>Movimentar</b> no cartão para registrar novos aportes, resgates e atualizar o valor atual.</div>
+          <div class="actions">
+            <button type="submit" class="btn primary" id="iSave">Adicionar investimento</button>
+            <button type="button" class="btn" id="iCancel" hidden>Cancelar</button>
+          </div>
+          <div class="hint" id="iMsg" role="alert"></div>
+        </form>
+      </section>
+
+      <section class="panel" aria-labelledby="ilTitle">
+        <h2 id="ilTitle">Seus investimentos</h2>
+        <ul class="items" id="iList"></ul>
+      </section>
+    </div>
+
+    <section class="panel" style="margin-top:20px" aria-labelledby="idTitle">
+      <h2 id="idTitle">Distribuição por tipo</h2>
+      <ul class="cats" id="iDist"></ul>
+    </section>
+  </div>
 </div>
 
 <div class="toast" id="toast" role="status" hidden><span id="toastMsg"></span><button type="button" id="toastUndo">Desfazer</button></div>
@@ -337,6 +533,45 @@ dialog .actions{justify-content:flex-end;flex-wrap:wrap}
   <div class="hint" id="bkMsg" role="status"></div>
 </dialog>
 
+<dialog id="payDlg" aria-labelledby="payTitle">
+  <form id="payForm" autocomplete="off">
+    <h2 id="payTitle">Registrar pagamento</h2>
+    <p class="hint" id="payInfo"></p>
+    <div class="row2">
+      <div class="field"><label for="payAmount">Valor (R$)</label><input type="text" id="payAmount" inputmode="decimal" required></div>
+      <div class="field"><label for="payDate">Data</label><input type="date" id="payDate" required></div>
+    </div>
+    <label class="check"><input type="checkbox" id="payTx"><span id="payTxLbl">Lançar também nas finanças da casa</span></label>
+    <div class="actions">
+      <button type="button" class="btn" id="payCancel">Cancelar</button>
+      <button type="submit" class="btn primary">Salvar</button>
+    </div>
+    <div class="hint" id="payMsg" role="alert"></div>
+  </form>
+</dialog>
+
+<dialog id="mvDlg" aria-labelledby="mvTitle">
+  <form id="mvForm" autocomplete="off">
+    <h2 id="mvTitle">Movimentar</h2>
+    <p class="hint" id="mvInfo"></p>
+    <div class="seg" style="grid-template-columns:repeat(3,1fr);margin-top:10px" role="radiogroup" aria-label="Tipo de movimentação">
+      <input type="radio" name="mk" id="mk-a" value="aporte" checked><label for="mk-a">Aporte</label>
+      <input type="radio" name="mk" id="mk-r" value="resgate"><label for="mk-r">Resgate</label>
+      <input type="radio" name="mk" id="mk-v" value="valor"><label for="mk-v">Atualizar valor</label>
+    </div>
+    <div class="row2">
+      <div class="field"><label for="mvAmount" id="mvAmtLbl">Valor (R$)</label><input type="text" id="mvAmount" inputmode="decimal" required></div>
+      <div class="field"><label for="mvDate" id="mvDateLbl">Data</label><input type="date" id="mvDate" required></div>
+    </div>
+    <div class="hint" id="mvHelp"></div>
+    <div class="actions">
+      <button type="button" class="btn" id="mvCancel">Cancelar</button>
+      <button type="submit" class="btn primary">Salvar</button>
+    </div>
+    <div class="hint" id="mvMsg" role="alert"></div>
+  </form>
+</dialog>
+
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-app.js";
 import { getAuth, onAuthStateChanged, signInWithEmailAndPassword, createUserWithEmailAndPassword, sendPasswordResetEmail, signOut, GoogleAuthProvider, signInWithPopup, signInWithRedirect, getRedirectResult } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-auth.js";
@@ -344,10 +579,10 @@ import { initializeFirestore, getFirestore, persistentLocalCache, persistentMult
 import { firebaseConfig } from "./firebase-config.js";
 
 (function(){
-  var CATS_EXP=['Moradia','Mercado','Contas','Transporte','Saúde','Educação','Lazer','Outros'];
+  var CATS_EXP=['Moradia','Mercado','Contas','Transporte','Saúde','Educação','Lazer','Empréstimos','Outros'];
   var CATS_INC=['Salário','Extra','Outros'];
   var KEY='financas-casa-v1', THEME_KEY='financas-casa-tema';
-  var state={tx:[],budgets:{}};
+  var state={tx:[],budgets:{},loans:[],invs:[]};
   var curMonth=monthKey(todayStr());
   var filter='todos', editingId=null, undoFn=null, toastTimer=null;
 
@@ -357,7 +592,7 @@ import { firebaseConfig } from "./firebase-config.js";
   function pad(n){return String(n).padStart(2,'0')}
   function todayStr(){var d=new Date();return d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate())}
   function monthKey(s){return s.slice(0,7)}
-  function uid(){return Date.now().toString(36)+Math.random().toString(36).slice(2,7)}
+  function newId(){return Date.now().toString(36)+Math.random().toString(36).slice(2,7)}
   function shiftMonth(key,n){var p=key.split('-').map(Number);var d=new Date(p[0],p[1]-1+n,1);return d.getFullYear()+'-'+pad(d.getMonth()+1)}
   function addMonths(dateStr,n){
     var p=dateStr.split('-').map(Number);
@@ -370,11 +605,15 @@ import { firebaseConfig } from "./firebase-config.js";
     s=String(s).trim().replace(/[R$\s]/g,'');
     if(!s) return NaN;
     if(s.indexOf(',')>-1) s=s.replace(/\./g,'').replace(',','.');
+    else if(/^\d{1,3}(\.\d{3})+$/.test(s)) s=s.replace(/\./g,'');
     return parseFloat(s);
   }
+  function r2(x){return Math.round(x*100)/100}
+  function fmtNum(x){return r2(x).toFixed(2).replace('.',',')}
+  function fmtDate(s){var p=s.split('-');return p[2]+'/'+p[1]+'/'+p[0]}
 
   /* ---------- storage (Firebase) ---------- */
-  var busy=false, uid=null, unsubTx=null, unsubCfg=null, auth=null, fs=null;
+  var busy=false, uid=null, unsubs=[], auth=null, fs=null;
   function setSync(txt,cls){var el=$('#sync');el.textContent=txt;el.className='sync'+(cls?' '+cls:'')}
   function onWriteError(e){showToast('Não foi possível salvar'+(e&&e.code?' ('+e.code+')':'')+'. Confira a conexão e as regras do Firestore.')}
 
@@ -392,6 +631,14 @@ import { firebaseConfig } from "./firebase-config.js";
     setDoc(doc(fs,'users',uid,'meta','budgets'),{values:state.budgets}).catch(onWriteError);
     return Promise.resolve();
   }
+  function loanBody(l){return {dir:l.dir,person:l.person,principal:l.principal,n:l.n,installment:l.installment||0,firstDue:l.firstDue,note:l.note||'',
+    payments:(l.payments||[]).map(function(p){return {id:p.id,date:p.date,amount:p.amount,tx:!!p.tx}})}}
+  function invBody(i){return {name:i.name,type:i.type,current:i.current,currentDate:i.currentDate,note:i.note||'',
+    moves:(i.moves||[]).map(function(m){return {id:m.id,date:m.date,kind:m.kind,amount:m.amount}})}}
+  function putLoan(l){setDoc(doc(fs,'users',uid,'loans',l.id),loanBody(l)).catch(onWriteError);return Promise.resolve()}
+  function delLoan(id){deleteDoc(doc(fs,'users',uid,'loans',id)).catch(onWriteError);return Promise.resolve()}
+  function putInv(i){setDoc(doc(fs,'users',uid,'investments',i.id),invBody(i)).catch(onWriteError);return Promise.resolve()}
+  function delInv(id){deleteDoc(doc(fs,'users',uid,'investments',id)).catch(onWriteError);return Promise.resolve()}
   async function attempt(fn){
     try{ await fn(); return true; }
     catch(e){ showToast('Não foi possível salvar. Tente de novo.'); return false; }
@@ -404,23 +651,34 @@ import { firebaseConfig } from "./firebase-config.js";
   }
   function subscribe(){
     var txCol=collection(fs,'users',uid,'transactions');
-    unsubTx=onSnapshot(txCol,function(snap){
+    unsubs.push(onSnapshot(txCol,function(snap){
       state.tx=snap.docs.map(function(d){var v=d.data();return {id:d.id,type:v.type,desc:v.desc,amount:v.amount,cat:v.cat,date:v.date,paid:!!v.paid}})
         .filter(function(x){return (x.type==='despesa'||x.type==='receita')&&typeof x.amount==='number'&&x.date});
       var l=syncLabel(snap); setSync(l[0],l[1]);
       render();
     },function(err){
       setSync(err&&err.code==='permission-denied'?'Sem permissão: confira as regras do Firestore':'Sem conexão com a nuvem');
-    });
-    unsubCfg=onSnapshot(doc(fs,'users',uid,'meta','budgets'),function(d){
+    }));
+    unsubs.push(onSnapshot(doc(fs,'users',uid,'meta','budgets'),function(d){
       state.budgets=d.exists()?((d.data()||{}).values||{}):{};
       render();
-    },function(){});
+    },function(){}));
+    unsubs.push(onSnapshot(collection(fs,'users',uid,'loans'),function(snap){
+      state.loans=snap.docs.map(function(d){var v=d.data();return {id:d.id,dir:v.dir,person:v.person||'',principal:v.principal,n:v.n||1,installment:v.installment||0,firstDue:v.firstDue,note:v.note||'',
+        payments:(Array.isArray(v.payments)?v.payments:[]).filter(function(p){return p&&p.id&&p.date&&typeof p.amount==='number'})}})
+        .filter(function(l){return (l.dir==='devo'||l.dir==='receber')&&typeof l.principal==='number'&&l.firstDue});
+      render();
+    },function(){}));
+    unsubs.push(onSnapshot(collection(fs,'users',uid,'investments'),function(snap){
+      state.invs=snap.docs.map(function(d){var v=d.data();return {id:d.id,name:v.name||'',type:v.type||'Outros',current:typeof v.current==='number'?v.current:0,currentDate:v.currentDate||todayStr(),note:v.note||'',
+        moves:(Array.isArray(v.moves)?v.moves:[]).filter(function(m){return m&&m.id&&m.date&&typeof m.amount==='number'&&(m.kind==='aporte'||m.kind==='resgate')})}});
+      render();
+    },function(){}));
   }
   function unsubscribe(){
-    if(unsubTx){unsubTx();unsubTx=null}
-    if(unsubCfg){unsubCfg();unsubCfg=null}
-    state={tx:[],budgets:{}};
+    unsubs.forEach(function(u){try{u()}catch(e){}});
+    unsubs=[];
+    state={tx:[],budgets:{},loans:[],invs:[]};
   }
   window.addEventListener('online',function(){setSync('Sincronizando…')});
   window.addEventListener('offline',function(){setSync('Offline: salva ao reconectar')});
@@ -524,6 +782,8 @@ import { firebaseConfig } from "./firebase-config.js";
     renderList(list);
     renderCats(list,t);
     renderHistory();
+    renderLoans();
+    renderInv();
   }
 
   function renderList(list){
@@ -660,7 +920,7 @@ import { firebaseConfig } from "./firebase-config.js";
     var n=Math.max(1,Math.min(36,parseInt($('#repeat').value,10)||1));
     var ok2=await attempt(async function(){
       for(var i=0;i<n;i++){
-        await putTx({id:uid(),type:type,desc:n>1?desc+' ('+(i+1)+'/'+n+')':desc,amount:amount,cat:cat,date:addMonths(date,i),paid:i===0?paid:false});
+        await putTx({id:newId(),type:type,desc:n>1?desc+' ('+(i+1)+'/'+n+')':desc,amount:amount,cat:cat,date:addMonths(date,i),paid:i===0?paid:false});
       }
     });
     busy=false; $('#saveBtn').disabled=false;
@@ -757,8 +1017,448 @@ import { firebaseConfig } from "./firebase-config.js";
         await saveBudgets();
       }
     });
+    var nl=0, ni=0;
+    if(ok&&Array.isArray(p.loans)){
+      var okL=await attempt(async function(){
+        for(var a=0;a<p.loans.length;a++){var l=p.loans[a]; if(l&&l.id&&(l.dir==='devo'||l.dir==='receber')&&typeof l.principal==='number'&&l.firstDue){await putLoan(l);nl++}}
+      });
+      ok=ok&&okL;
+    }
+    if(ok&&Array.isArray(p.invs)){
+      var okI=await attempt(async function(){
+        for(var b=0;b<p.invs.length;b++){var v=p.invs[b]; if(v&&v.id&&v.name&&typeof v.current==='number'){await putInv(v);ni++}}
+      });
+      ok=ok&&okI;
+    }
     render();
-    $('#bkMsg').textContent=ok?'Dados restaurados: '+clean.length+' lançamentos.':'A restauração não foi concluída.';
+    $('#bkMsg').textContent=ok?'Dados restaurados: '+clean.length+' lançamentos, '+nl+' empréstimos e '+ni+' investimentos.':'A restauração não foi concluída.';
+  });
+
+  /* ---------- dialogs ---------- */
+  function showDlg(sel){var d=$(sel); if(d.showModal) d.showModal(); else d.setAttribute('open','')}
+  function closeDlg(sel){var d=$(sel); if(d.close) d.close(); else d.removeAttribute('open')}
+
+  /* ---------- tabs ---------- */
+  var TAB_KEY='financas-casa-aba', TABS=['home','loans','inv'];
+  function setTab(t,focus){
+    if(TABS.indexOf(t)<0) t='home';
+    TABS.forEach(function(k){
+      var on=k===t, b=$('#tab-'+k);
+      b.setAttribute('aria-selected',on?'true':'false'); b.tabIndex=on?0:-1;
+      $('#view-'+k).hidden=!on;
+    });
+    $('#monthNav').hidden=t!=='home';
+    $('#todayBtn').hidden=t!=='home';
+    try{localStorage.setItem(TAB_KEY,t)}catch(e){}
+    if(focus) $('#tab-'+t).focus();
+  }
+  TABS.forEach(function(k,idx){
+    var b=$('#tab-'+k);
+    b.addEventListener('click',function(){setTab(k)});
+    b.addEventListener('keydown',function(e){
+      if(e.key==='ArrowRight') {e.preventDefault();setTab(TABS[(idx+1)%TABS.length],true)}
+      else if(e.key==='ArrowLeft'){e.preventDefault();setTab(TABS[(idx+TABS.length-1)%TABS.length],true)}
+    });
+  });
+
+  /* ---------- loans ---------- */
+  var lFilter='aberto', editingLoan=null, payCtx=null, openDet={};
+  function calcLoan(l){
+    var n=Math.max(1,l.n||1);
+    var hasInst=l.installment>0;
+    var inst=hasInst?l.installment:Math.max(0.01,r2(l.principal/n));
+    var total=hasInst?r2(l.installment*n):l.principal;
+    var paid=0; (l.payments||[]).forEach(function(p){paid+=p.amount}); paid=r2(paid);
+    var saldo=Math.max(0,r2(total-paid));
+    var done=saldo<0.005;
+    var paidInst=Math.min(n,Math.floor((paid+0.005)/inst));
+    return {n:n,inst:inst,total:total,paid:paid,saldo:saldo,done:done,paidInst:paidInst,
+      next:done?null:addMonths(l.firstDue,paidInst)};
+  }
+  function loanDirUi(){
+    var dev=document.querySelector('input[name=ldir]:checked').value==='devo';
+    $('#lPerson').placeholder=dev?'Ex.: Banco, financiamento, João':'Ex.: Maria, irmão, amigo';
+  }
+  function resetLoanForm(){
+    editingLoan=null;
+    $('#lForm').reset();
+    document.getElementById('l-dev').checked=true;
+    $('#lN').value=1;
+    $('#lFirst').value=addMonths(todayStr(),1);
+    $('#lfTitle').textContent='Novo empréstimo';
+    $('#lSave').textContent='Adicionar empréstimo';
+    $('#lCancel').hidden=true;
+    $('#lMsg').textContent='';
+    loanDirUi();
+  }
+  function startLoanEdit(id){
+    var l=state.loans.filter(function(x){return x.id===id})[0]; if(!l) return;
+    editingLoan=id;
+    document.getElementById(l.dir==='devo'?'l-dev':'l-rec').checked=true;
+    loanDirUi();
+    $('#lPerson').value=l.person;
+    $('#lPrincipal').value=fmtNum(l.principal);
+    $('#lFirst').value=l.firstDue;
+    $('#lN').value=l.n;
+    $('#lInst').value=l.installment>0?fmtNum(l.installment):'';
+    $('#lNote').value=l.note||'';
+    $('#lfTitle').textContent='Editar empréstimo';
+    $('#lSave').textContent='Salvar alterações';
+    $('#lCancel').hidden=false;
+    $('#lMsg').textContent='';
+    $('#lForm').scrollIntoView({behavior:'smooth',block:'center'});
+    $('#lPerson').focus();
+  }
+  document.querySelectorAll('input[name=ldir]').forEach(function(r){r.addEventListener('change',loanDirUi)});
+  $('#lCancel').addEventListener('click',resetLoanForm);
+  $('#lForm').addEventListener('submit',async function(e){
+    e.preventDefault();
+    var dir=document.querySelector('input[name=ldir]:checked').value;
+    var person=$('#lPerson').value.trim(), principal=parseAmount($('#lPrincipal').value);
+    var first=$('#lFirst').value, n=parseInt($('#lN').value,10);
+    var instRaw=$('#lInst').value.trim(), inst=instRaw?parseAmount(instRaw):0, note=$('#lNote').value.trim();
+    var msg=$('#lMsg');
+    if(!person){msg.textContent='Escreva com quem é o empréstimo.';return}
+    if(!(principal>0)){msg.textContent='Informe o valor emprestado, como 5000,00.';return}
+    if(!first){msg.textContent='Escolha a data do 1º vencimento.';return}
+    if(!(n>=1&&n<=360)){msg.textContent='O número de parcelas deve ficar entre 1 e 360.';return}
+    if(instRaw&&!(inst>0)){msg.textContent='O valor da parcela precisa ser maior que zero (ou deixe em branco).';return}
+    var existing=editingLoan?state.loans.filter(function(x){return x.id===editingLoan})[0]:null;
+    var l={id:existing?existing.id:newId(),dir:dir,person:person,principal:r2(principal),n:n,installment:inst>0?r2(inst):0,firstDue:first,note:note,
+      payments:existing?existing.payments:[]};
+    var ok=await attempt(function(){return putLoan(l)});
+    if(ok){var wasEdit=!!existing; resetLoanForm(); render(); showToast(wasEdit?'Alterações salvas':'Empréstimo adicionado')}
+  });
+  document.querySelectorAll('.fchip[data-lf]').forEach(function(c){
+    c.addEventListener('click',function(){
+      lFilter=c.getAttribute('data-lf');
+      document.querySelectorAll('.fchip[data-lf]').forEach(function(o){o.setAttribute('aria-pressed',o===c?'true':'false')});
+      renderLoans();
+    });
+  });
+
+  function renderLoans(){
+    var today=todayStr(), devo=0, rec=0, open=0, nextIt=null;
+    var items=state.loans.map(function(l){return {l:l,c:calcLoan(l)}});
+    items.forEach(function(it){
+      if(it.c.done) return;
+      open++;
+      if(it.l.dir==='devo') devo+=it.c.saldo; else rec+=it.c.saldo;
+      if(!nextIt||it.c.next<nextIt.c.next) nextIt=it;
+    });
+    $('#lDevo').textContent=brl.format(r2(devo));
+    $('#lRec').textContent=brl.format(r2(rec));
+    var net=r2(rec-devo), ne=$('#lNet');
+    ne.textContent=brl.format(net); ne.className='v'+(net>0?' gain-pos':net<0?' gain-neg':'');
+    $('#lOpen').textContent=String(open);
+    if(nextIt){
+      $('#lNext').textContent=fmtDate(nextIt.c.next).slice(0,5)+' · '+brl.format(Math.min(nextIt.c.inst,nextIt.c.saldo));
+      $('#lNextK').textContent='Próximo: '+nextIt.l.person;
+    }else{
+      $('#lNext').textContent='—'; $('#lNextK').textContent='Próximo vencimento';
+    }
+
+    var rows=items.filter(function(it){return lFilter==='todos'||(lFilter==='aberto'?!it.c.done:it.c.done)})
+      .sort(function(a,b){
+        if(a.c.done!==b.c.done) return a.c.done?1:-1;
+        var an=a.c.next||'9999', bn=b.c.next||'9999';
+        return an<bn?-1:an>bn?1:0;
+      });
+    var ul=$('#lList');
+    if(!rows.length){
+      ul.innerHTML='<li class="empty">'+(state.loans.length
+        ? (lFilter==='quitado'?'Nenhum empréstimo quitado ainda.':'Nenhum empréstimo em aberto.')
+        : 'Nenhum empréstimo cadastrado. Preencha o formulário para adicionar o primeiro.')+'</li>';
+      return;
+    }
+    ul.innerHTML=rows.map(function(it){
+      var l=it.l, c=it.c, dev=l.dir==='devo';
+      var late=!c.done&&c.next<today;
+      var pct=c.total>0?Math.min(100,c.paid/c.total*100):0;
+      var pays=l.payments.slice().sort(function(a,b){return a.date<b.date?1:a.date>b.date?-1:0});
+      var hist=pays.length?pays.map(function(p){
+        return '<li><span>'+fmtDate(p.date)+' · '+brl.format(p.amount)+(p.tx?' <span class="sub">(lançado na Casa)</span>':'')+'</span>'+
+          '<button type="button" class="mini del" data-act="pdel" data-id="'+l.id+'" data-pid="'+p.id+'" aria-label="Excluir pagamento de '+fmtDate(p.date)+'">Excluir</button></li>';
+      }).join(''):'<li class="none">Nenhum pagamento registrado ainda.</li>';
+      return '<li class="item">'+
+        '<div class="head"><span class="nm">'+esc(l.person)+'</span>'+
+          '<span class="tag '+(c.done?'ok':(dev?'dev':'rec'))+'">'+(c.done?'Quitado':(dev?'Eu devo':'Me devem'))+'</span></div>'+
+        (l.note?'<div class="sub">'+esc(l.note)+'</div>':'')+
+        '<div class="num">'+brl.format(c.saldo)+'</div>'+
+        '<div class="sub">'+(c.done?'Total pago: '+brl.format(c.paid):'saldo em aberto de '+brl.format(c.total))+'</div>'+
+        '<div class="bar" role="img" aria-label="'+Math.round(pct)+'% já '+(dev?'pago':'recebido')+'"><b style="width:'+pct+'%"></b></div>'+
+        '<div class="kv">'+
+          '<div><div class="k">Parcela</div><div class="v">'+brl.format(c.inst)+'</div></div>'+
+          '<div><div class="k">Parcelas '+(dev?'pagas':'recebidas')+'</div><div class="v">'+c.paidInst+' de '+c.n+'</div></div>'+
+          '<div><div class="k">'+(c.done?'Situação':'Próximo vencimento')+'</div><div class="v'+(late?' late':'')+'">'+(c.done?'Quitado':fmtDate(c.next)+(late?' (atrasado)':''))+'</div></div>'+
+          (l.installment>0&&c.total!==l.principal?'<div><div class="k">Emprestado</div><div class="v">'+brl.format(l.principal)+'</div></div>':'')+
+        '</div>'+
+        '<div class="ops">'+
+          (c.done?'':'<button type="button" class="btn primary" data-act="pay" data-id="'+l.id+'">'+(dev?'Registrar pagamento':'Registrar recebimento')+'</button>')+
+          '<button type="button" class="mini" data-act="ledit" data-id="'+l.id+'">Editar</button>'+
+          '<button type="button" class="mini del" data-act="ldel" data-id="'+l.id+'">Excluir</button>'+
+        '</div>'+
+        '<details data-did="l'+l.id+'"'+(openDet['l'+l.id]?' open':'')+'><summary>Histórico ('+pays.length+')</summary><ul class="hist">'+hist+'</ul></details>'+
+      '</li>';
+    }).join('');
+  }
+
+  $('#lList').addEventListener('toggle',function(e){
+    var d=e.target; if(d&&d.getAttribute&&d.getAttribute('data-did')) openDet[d.getAttribute('data-did')]=d.open;
+  },true);
+  $('#lList').addEventListener('click',async function(e){
+    var btn=e.target.closest('button[data-act]'); if(!btn) return;
+    var id=btn.getAttribute('data-id'), act=btn.getAttribute('data-act');
+    var l=state.loans.filter(function(x){return x.id===id})[0]; if(!l) return;
+    if(act==='pay'){ openPay(id); }
+    else if(act==='ledit'){ startLoanEdit(id); }
+    else if(act==='ldel'){
+      if(editingLoan===id) resetLoanForm();
+      var ok=await attempt(function(){return delLoan(id)}); render();
+      if(ok) showToast('Empréstimo excluído',function(){attempt(function(){return putLoan(l)}).then(render)});
+    }else if(act==='pdel'){
+      var pid=btn.getAttribute('data-pid');
+      var pay=l.payments.filter(function(p){return p.id===pid})[0]; if(!pay) return;
+      var upd=Object.assign({},l,{payments:l.payments.filter(function(p){return p.id!==pid})});
+      var ok2=await attempt(async function(){
+        await putLoan(upd);
+        if(pay.tx) await delTx('loan_'+pid);
+      });
+      render();
+      if(ok2) showToast('Pagamento excluído'+(pay.tx?' (e o lançamento na aba Casa)':''));
+    }
+  });
+
+  function openPay(id){
+    var l=state.loans.filter(function(x){return x.id===id})[0]; if(!l) return;
+    var c=calcLoan(l), dev=l.dir==='devo';
+    payCtx=id;
+    $('#payTitle').textContent=dev?'Registrar pagamento':'Registrar recebimento';
+    $('#payInfo').textContent=l.person+' · saldo em aberto '+brl.format(c.saldo);
+    $('#payAmount').value=fmtNum(Math.min(c.inst,c.saldo));
+    $('#payDate').value=todayStr();
+    $('#payTx').checked=false;
+    $('#payTxLbl').textContent=dev?'Lançar também como despesa na aba Casa':'Lançar também como receita na aba Casa';
+    $('#payMsg').textContent='';
+    showDlg('#payDlg');
+    $('#payAmount').focus(); $('#payAmount').select();
+  }
+  $('#payCancel').addEventListener('click',function(){closeDlg('#payDlg')});
+  $('#payForm').addEventListener('submit',async function(e){
+    e.preventDefault();
+    var l=state.loans.filter(function(x){return x.id===payCtx})[0];
+    if(!l){closeDlg('#payDlg');return}
+    var c=calcLoan(l), amt=parseAmount($('#payAmount').value), date=$('#payDate').value, msg=$('#payMsg');
+    if(!(amt>0)){msg.textContent='Informe um valor maior que zero, como 350,00.';return}
+    if(!date){msg.textContent='Escolha a data.';return}
+    amt=r2(amt);
+    if(amt>c.saldo+0.005){msg.textContent='O valor passa do saldo em aberto ('+brl.format(c.saldo)+').';return}
+    var pid=newId(), withTx=$('#payTx').checked, dev=l.dir==='devo';
+    var upd=Object.assign({},l,{payments:l.payments.concat([{id:pid,date:date,amount:amt,tx:withTx}])});
+    var ok=await attempt(async function(){
+      await putLoan(upd);
+      if(withTx) await putTx({id:'loan_'+pid,type:dev?'despesa':'receita',desc:(dev?'Pagamento a ':'Recebimento de ')+l.person,amount:amt,cat:dev?'Empréstimos':'Outros',date:date,paid:true});
+    });
+    if(ok){closeDlg('#payDlg'); render(); showToast(dev?'Pagamento registrado':'Recebimento registrado')}
+  });
+
+  /* ---------- investments ---------- */
+  var INV_TYPES=['Renda fixa','Tesouro Direto','CDB / LCI / LCA','Poupança','Ações','FIIs','Fundos','Cripto','Previdência','Outros'];
+  var editingInv=null, mvCtx=null;
+  function fillInvTypes(sel){
+    var types=INV_TYPES.slice();
+    if(sel&&types.indexOf(sel)<0) types.push(sel);
+    $('#iType').innerHTML=types.map(function(t){return '<option'+(t===sel?' selected':'')+'>'+esc(t)+'</option>'}).join('');
+  }
+  function calcInv(i){
+    var ap=0, rs=0;
+    (i.moves||[]).forEach(function(m){if(m.kind==='aporte') ap+=m.amount; else rs+=m.amount});
+    ap=r2(ap); rs=r2(rs);
+    var gain=r2(i.current+rs-ap);
+    return {ap:ap,rs:rs,gain:gain,pct:ap>0?gain/ap*100:0};
+  }
+  function daysSince(s){
+    var p=s.split('-').map(Number), t=todayStr().split('-').map(Number);
+    return Math.round((new Date(t[0],t[1]-1,t[2])-new Date(p[0],p[1]-1,p[2]))/864e5);
+  }
+  function fmtPct(x){return (x>0?'+':x<0?'−':'')+Math.abs(x).toLocaleString('pt-BR',{minimumFractionDigits:1,maximumFractionDigits:1})+'%'}
+  function fmtSigned(v){return (v>0?'+ ':v<0?'− ':'')+brl.format(Math.abs(v))}
+  function gainCls(v){return v>0?'gain-pos':v<0?'gain-neg':''}
+
+  function resetInvForm(){
+    editingInv=null;
+    $('#iForm').reset();
+    fillInvTypes();
+    $('#iDate').value=todayStr();
+    $('#iAmtRow').hidden=false;
+    $('#iAmount').required=true; $('#iDate').required=true;
+    $('#ifTitle').textContent='Novo investimento';
+    $('#iSave').textContent='Adicionar investimento';
+    $('#iCancel').hidden=true;
+    $('#iHelp').hidden=false;
+    $('#iMsg').textContent='';
+  }
+  function startInvEdit(id){
+    var i=state.invs.filter(function(x){return x.id===id})[0]; if(!i) return;
+    editingInv=id;
+    fillInvTypes(i.type);
+    $('#iName').value=i.name;
+    $('#iNote').value=i.note||'';
+    $('#iAmtRow').hidden=true;
+    $('#iAmount').required=false; $('#iDate').required=false;
+    $('#iHelp').hidden=true;
+    $('#ifTitle').textContent='Editar investimento';
+    $('#iSave').textContent='Salvar alterações';
+    $('#iCancel').hidden=false;
+    $('#iMsg').textContent='';
+    $('#iForm').scrollIntoView({behavior:'smooth',block:'center'});
+    $('#iName').focus();
+  }
+  $('#iCancel').addEventListener('click',resetInvForm);
+  $('#iForm').addEventListener('submit',async function(e){
+    e.preventDefault();
+    var name=$('#iName').value.trim(), type=$('#iType').value, note=$('#iNote').value.trim(), msg=$('#iMsg');
+    if(!name){msg.textContent='Escreva o nome do investimento.';return}
+    var existing=editingInv?state.invs.filter(function(x){return x.id===editingInv})[0]:null;
+    var inv;
+    if(existing){
+      inv=Object.assign({},existing,{name:name,type:type,note:note});
+    }else{
+      var amt=parseAmount($('#iAmount').value), date=$('#iDate').value;
+      if(!(amt>0)){msg.textContent='Informe o valor aplicado, como 1000,00.';return}
+      if(!date){msg.textContent='Escolha a data da aplicação.';return}
+      amt=r2(amt);
+      inv={id:newId(),name:name,type:type,current:amt,currentDate:date,note:note,moves:[{id:newId(),date:date,kind:'aporte',amount:amt}]};
+    }
+    var ok=await attempt(function(){return putInv(inv)});
+    if(ok){var wasEdit=!!existing; resetInvForm(); render(); showToast(wasEdit?'Alterações salvas':'Investimento adicionado')}
+  });
+
+  function renderInv(){
+    var items=state.invs.map(function(i){return {i:i,c:calcInv(i)}});
+    var cur=0, ap=0, rs=0, gain=0, byType={};
+    items.forEach(function(it){
+      cur+=it.i.current; ap+=it.c.ap; rs+=it.c.rs; gain+=it.c.gain;
+      byType[it.i.type]=(byType[it.i.type]||0)+it.i.current;
+    });
+    cur=r2(cur); ap=r2(ap); rs=r2(rs); gain=r2(gain);
+    $('#iTotal').textContent=brl.format(cur);
+    var g=$('#iGain'); g.textContent=fmtSigned(gain); g.className=gainCls(gain);
+    $('#iAp').textContent=brl.format(ap);
+    $('#iRs').textContent=brl.format(rs);
+    var pc=$('#iPct'); pc.textContent=ap>0?fmtPct(gain/ap*100):'—'; pc.className='v '+(ap>0?gainCls(gain):'');
+
+    var ul=$('#iList');
+    if(!items.length){
+      ul.innerHTML='<li class="empty">Nenhum investimento cadastrado. Preencha o formulário para adicionar o primeiro.</li>';
+    }else{
+      items.sort(function(a,b){return b.i.current-a.i.current});
+      ul.innerHTML=items.map(function(it){
+        var i=it.i, c=it.c, days=daysSince(i.currentDate), stale=days>30;
+        var moves=i.moves.slice().sort(function(a,b){return a.date<b.date?1:a.date>b.date?-1:0});
+        var hist=moves.length?moves.map(function(m){
+          return '<li><span>'+(m.kind==='aporte'?'Aporte':'Resgate')+' · '+fmtDate(m.date)+' · '+brl.format(m.amount)+'</span>'+
+            '<button type="button" class="mini del" data-act="mdel" data-id="'+i.id+'" data-mid="'+m.id+'" aria-label="Excluir '+(m.kind==='aporte'?'aporte':'resgate')+' de '+fmtDate(m.date)+'">Excluir</button></li>';
+        }).join(''):'<li class="none">Nenhuma movimentação.</li>';
+        return '<li class="item">'+
+          '<div class="head"><span class="nm">'+esc(i.name)+'</span><span class="tag">'+esc(i.type)+'</span></div>'+
+          (i.note?'<div class="sub">'+esc(i.note)+'</div>':'')+
+          '<div class="num">'+brl.format(i.current)+'</div>'+
+          '<div class="sub'+(stale?' warn':'')+'">Valor '+(days<=0?'atualizado hoje':'atualizado há '+days+(days===1?' dia':' dias'))+(stale?' · hora de atualizar':'')+'</div>'+
+          '<div class="kv">'+
+            '<div><div class="k">Aplicado</div><div class="v">'+brl.format(c.ap)+'</div></div>'+
+            '<div><div class="k">Rendimento</div><div class="v '+gainCls(c.gain)+'">'+fmtSigned(c.gain)+(c.ap>0?' ('+fmtPct(c.pct)+')':'')+'</div></div>'+
+            (c.rs>0?'<div><div class="k">Resgatado</div><div class="v">'+brl.format(c.rs)+'</div></div>':'')+
+          '</div>'+
+          '<div class="ops">'+
+            '<button type="button" class="btn primary" data-act="move" data-id="'+i.id+'">Movimentar</button>'+
+            '<button type="button" class="mini" data-act="iedit" data-id="'+i.id+'">Editar</button>'+
+            '<button type="button" class="mini del" data-act="idel" data-id="'+i.id+'">Excluir</button>'+
+          '</div>'+
+          '<details data-did="i'+i.id+'"'+(openDet['i'+i.id]?' open':'')+'><summary>Movimentações ('+moves.length+')</summary><ul class="hist">'+hist+'</ul></details>'+
+        '</li>';
+      }).join('');
+    }
+
+    var types=Object.keys(byType).filter(function(t){return byType[t]>0}).sort(function(a,b){return byType[b]-byType[a]});
+    $('#iDist').innerHTML=types.length?types.map(function(t){
+      var p=cur>0?byType[t]/cur*100:0;
+      return '<li><div class="line"><span class="nm">'+esc(t)+' · '+brl.format(r2(byType[t]))+'</span></div>'+
+        '<div class="bar"><b style="width:'+p+'%"></b></div><div class="note">'+p.toLocaleString('pt-BR',{maximumFractionDigits:1})+'% da carteira</div></li>';
+    }).join(''):'<li class="empty">Sem investimentos para mostrar.</li>';
+  }
+
+  $('#iList').addEventListener('toggle',function(e){
+    var d=e.target; if(d&&d.getAttribute&&d.getAttribute('data-did')) openDet[d.getAttribute('data-did')]=d.open;
+  },true);
+  $('#iList').addEventListener('click',async function(e){
+    var btn=e.target.closest('button[data-act]'); if(!btn) return;
+    var id=btn.getAttribute('data-id'), act=btn.getAttribute('data-act');
+    var i=state.invs.filter(function(x){return x.id===id})[0]; if(!i) return;
+    if(act==='move'){ openMove(id); }
+    else if(act==='iedit'){ startInvEdit(id); }
+    else if(act==='idel'){
+      if(editingInv===id) resetInvForm();
+      var ok=await attempt(function(){return delInv(id)}); render();
+      if(ok) showToast('Investimento excluído',function(){attempt(function(){return putInv(i)}).then(render)});
+    }else if(act==='mdel'){
+      var mid=btn.getAttribute('data-mid');
+      var m=i.moves.filter(function(x){return x.id===mid})[0]; if(!m) return;
+      var cur=m.kind==='aporte'?Math.max(0,r2(i.current-m.amount)):r2(i.current+m.amount);
+      var upd=Object.assign({},i,{moves:i.moves.filter(function(x){return x.id!==mid}),current:cur});
+      var ok2=await attempt(function(){return putInv(upd)}); render();
+      if(ok2) showToast((m.kind==='aporte'?'Aporte':'Resgate')+' excluído; valor atual ajustado');
+    }
+  });
+
+  function mvKind(){return document.querySelector('input[name=mk]:checked').value}
+  function updateMvUi(prefill){
+    var i=state.invs.filter(function(x){return x.id===mvCtx})[0]; if(!i) return;
+    var k=mvKind();
+    var cfg={
+      aporte:['Valor do aporte (R$)','Data do aporte','O valor atual sobe nesse mesmo valor. Se houver rendimento, use "Atualizar valor" depois.'],
+      resgate:['Valor do resgate (R$)','Data do resgate','O valor sai do valor atual. Máximo: '+brl.format(i.current)+'.'],
+      valor:['Valor atual total (R$)','Data da atualização','Informe quanto o investimento vale hoje, conforme o extrato do banco ou da corretora.']
+    }[k];
+    $('#mvAmtLbl').textContent=cfg[0]; $('#mvDateLbl').textContent=cfg[1]; $('#mvHelp').textContent=cfg[2];
+    if(prefill) $('#mvAmount').value=k==='valor'?fmtNum(i.current):'';
+    $('#mvMsg').textContent='';
+  }
+  function openMove(id){
+    var i=state.invs.filter(function(x){return x.id===id})[0]; if(!i) return;
+    mvCtx=id;
+    document.getElementById('mk-a').checked=true;
+    $('#mvTitle').textContent='Movimentar: '+i.name;
+    $('#mvInfo').textContent='Valor atual: '+brl.format(i.current);
+    $('#mvDate').value=todayStr();
+    updateMvUi(true);
+    showDlg('#mvDlg');
+    $('#mvAmount').focus();
+  }
+  document.querySelectorAll('input[name=mk]').forEach(function(r){r.addEventListener('change',function(){updateMvUi(true)})});
+  $('#mvCancel').addEventListener('click',function(){closeDlg('#mvDlg')});
+  $('#mvForm').addEventListener('submit',async function(e){
+    e.preventDefault();
+    var i=state.invs.filter(function(x){return x.id===mvCtx})[0];
+    if(!i){closeDlg('#mvDlg');return}
+    var k=mvKind(), amt=parseAmount($('#mvAmount').value), date=$('#mvDate').value, msg=$('#mvMsg');
+    if(!date){msg.textContent='Escolha a data.';return}
+    if(k==='valor'){ if(!(amt>=0)){msg.textContent='Informe o valor atual, como 1250,00.';return} }
+    else if(!(amt>0)){msg.textContent='Informe um valor maior que zero.';return}
+    amt=r2(amt);
+    var upd=Object.assign({},i,{moves:i.moves.slice()});
+    if(k==='aporte'){
+      upd.moves.push({id:newId(),date:date,kind:'aporte',amount:amt});
+      upd.current=r2(i.current+amt);
+    }else if(k==='resgate'){
+      if(amt>i.current+0.005){msg.textContent='O resgate passa do valor atual ('+brl.format(i.current)+').';return}
+      upd.moves.push({id:newId(),date:date,kind:'resgate',amount:amt});
+      upd.current=r2(Math.max(0,i.current-amt));
+    }else{
+      upd.current=amt; upd.currentDate=date;
+    }
+    var ok=await attempt(function(){return putInv(upd)});
+    if(ok){closeDlg('#mvDlg'); render(); showToast(k==='aporte'?'Aporte registrado':k==='resgate'?'Resgate registrado':'Valor atualizado')}
   });
 
   /* ---------- theme ---------- */
@@ -775,6 +1475,11 @@ import { firebaseConfig } from "./firebase-config.js";
   /* ---------- init ---------- */
   fillCats();
   $('#date').value=defaultDate();
+  fillInvTypes();
+  resetLoanForm();
+  resetInvForm();
+  var savedTab='home'; try{savedTab=localStorage.getItem(TAB_KEY)||'home'}catch(e){}
+  setTab(savedTab);
   render();
   startFirebase();
   if('serviceWorker' in navigator){window.addEventListener('load',function(){navigator.serviceWorker.register('./sw.js').catch(function(){})})}
