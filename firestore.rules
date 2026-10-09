@@ -50,6 +50,7 @@ service cloud.firestore {
       match /loans/{id} { allow read, write: if isMember(hid); }
       match /investments/{id} { allow read, write: if isMember(hid); }
       match /recurring/{id} { allow read, write: if isMember(hid); }
+      match /cards/{id} { allow read, write: if isMember(hid); }
       match /meta/{id} { allow read, write: if isMember(hid); }
     }
   }
