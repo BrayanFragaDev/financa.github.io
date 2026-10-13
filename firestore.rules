@@ -52,6 +52,13 @@ service cloud.firestore {
       match /recurring/{id} { allow read, write: if isMember(hid); }
       match /cards/{id} { allow read, write: if isMember(hid); }
       match /meta/{id} { allow read, write: if isMember(hid); }
+
+      // Aparelhos que recebem avisos: cada pessoa gerencia so os proprios
+      match /devices/{id} {
+        allow read: if isMember(hid);
+        allow create, update: if isMember(hid) && request.resource.data.uid == request.auth.uid;
+        allow delete: if isMember(hid) && resource.data.uid == request.auth.uid;
+      }
     }
   }
 }

@@ -398,6 +398,7 @@ body{font-variant-numeric:tabular-nums}
           <span class="who" id="who"></span>
           <button type="button" class="btn" id="shareBtn">Compartilhar a casa</button>
           <button type="button" class="btn" id="backupBtn">Exportar e importar</button>
+          <button type="button" class="btn" id="pushBtn">Ativar avisos de contas</button>
           <button type="button" class="btn" id="themeBtn">Alternar tema claro e escuro</button>
           <button type="button" class="btn" id="logoutBtn">Sair</button>
         </div>
@@ -982,7 +983,7 @@ import { firebaseConfig } from "./firebase-config.js";
   function fmtDate(s){var p=s.split('-');return p[2]+'/'+p[1]+'/'+p[0]}
 
   /* ---------- storage (Firebase, casa compartilhada) ---------- */
-  var busy=false, uid=null, hid=null, me=null, unsubs=[], auth=null, fs=null, sessionId=0;
+  var busy=false, uid=null, hid=null, me=null, unsubs=[], auth=null, fs=null, fbApp=null, sessionId=0;
   var txReady=false, recReady=false, sent={}, notice='', checking=false, bootAction=null, legacyAvail=false;
   var hh={name:'',members:[]};
   var INV_KEY='financas-casa-convite', INV_RE=/^[a-z0-9]{16,64}$/;
@@ -1306,7 +1307,7 @@ service cloud.firestore {
     var bad=!firebaseConfig||!firebaseConfig.apiKey||String(firebaseConfig.apiKey).indexOf('COLE')>-1||!firebaseConfig.projectId;
     if(bad){hideAll();$('#setup').hidden=false;return}
     try{
-      var app=initializeApp(firebaseConfig);
+      var app=fbApp=initializeApp(firebaseConfig);
       auth=getAuth(app);
       try{ fs=initializeFirestore(app,{localCache:persistentLocalCache({tabManager:persistentMultipleTabManager()})}); }
       catch(e){ fs=getFirestore(app); }
@@ -3092,6 +3093,67 @@ service cloud.firestore {
     document.addEventListener('click',function(e){if(!menu.hidden&&!menu.contains(e.target)) setMenu(false)});
     document.addEventListener('keydown',function(e){if(e.key==='Escape'&&!menu.hidden){setMenu(false); btn.focus()}});
     menu.addEventListener('click',function(e){if(e.target.closest('button')) setMenu(false)});
+  })();
+
+  /* ---------- v8: avisos de contas (push) ---------- */
+  (function(){
+    var btn=$('#pushBtn'), KEY='lar-em-dia-push-token', synced=false;
+    function supported(){return 'serviceWorker' in navigator&&'PushManager' in window&&'Notification' in window}
+    function isIOS(){return /iPad|iPhone|iPod/.test(navigator.userAgent)||(navigator.platform==='MacIntel'&&navigator.maxTouchPoints>1)}
+    function standalone(){return !!(navigator.standalone||(window.matchMedia&&matchMedia('(display-mode: standalone)').matches))}
+    function stored(){try{return localStorage.getItem(KEY)||''}catch(e){return ''}}
+    function store(t){try{if(t) localStorage.setItem(KEY,t); else localStorage.removeItem(KEY)}catch(e){}}
+    function isOn(){return !!stored()&&supported()&&Notification.permission==='granted'}
+    function label(){btn.textContent=isOn()?'Desativar avisos neste aparelho':'Ativar avisos de contas'; btn.setAttribute('aria-pressed',isOn()?'true':'false')}
+    async function getVapid(){
+      try{ var c=await import('./push-config.js'); var k=c&&c.vapidKey; if(k&&String(k).indexOf('COLE')<0) return String(k) }catch(e){}
+      return '';
+    }
+    async function getTok(vk){
+      var reg=await navigator.serviceWorker.ready;
+      var M=await import('https://www.gstatic.com/firebasejs/10.14.1/firebase-messaging.js');
+      var msg=M.getMessaging(fbApp);
+      var tok=await M.getToken(msg,{vapidKey:vk,serviceWorkerRegistration:reg});
+      return {tok:tok,reg:reg,M:M,msg:msg};
+    }
+    async function save(tok){
+      await setDoc(doc(fs,'households',hid,'devices',tok),{token:tok,uid:uid,created:Date.now(),tz:'America/Sao_Paulo'});
+    }
+    async function enable(){
+      if(!hid||!fs){showToast('Entre na sua conta primeiro.');return}
+      if(!supported()){
+        showToast(isIOS()&&!standalone()?'No iPhone, adicione o app à tela inicial e abra por lá para receber avisos.':'Este navegador não permite avisos.');
+        return;
+      }
+      var vk=await getVapid();
+      if(!vk){showToast('Falta a chave de avisos no arquivo push-config.js.');return}
+      var perm=await Notification.requestPermission();
+      if(perm!=='granted'){showToast('Os avisos estão bloqueados. Libere nas configurações do navegador.');label();return}
+      var r=await getTok(vk);
+      if(!r.tok){showToast('Não foi possível ativar os avisos.');return}
+      await save(r.tok); store(r.tok); label();
+      try{ await r.reg.showNotification('Avisos ativados',{body:'Você vai receber as contas que vencem hoje, amanhã e as atrasadas.',icon:'./icon-192.png',tag:'lar-teste'}) }catch(e){}
+      showToast('Avisos ativados neste aparelho.');
+    }
+    async function disable(){
+      var tok=stored();
+      try{ if(tok&&hid) await deleteDoc(doc(fs,'households',hid,'devices',tok)) }catch(e){}
+      try{ var vk=await getVapid(); if(vk&&supported()){ var r=await getTok(vk); await r.M.deleteToken(r.msg) } }catch(e){}
+      store(''); label(); showToast('Avisos desativados neste aparelho.');
+    }
+    if(btn){
+      btn.addEventListener('click',function(){
+        (isOn()?disable():enable()).catch(function(){showToast('Não foi possível alterar os avisos agora.')});
+      });
+      $('#menuBtn').addEventListener('click',label);
+      label();
+    }
+    // renova o registro do aparelho de tempos em tempos (o token pode mudar)
+    setInterval(function(){
+      if(synced||!hid||!fs||!isOn()) return;
+      synced=true;
+      getVapid().then(function(vk){ if(!vk) return; return getTok(vk).then(function(r){ if(r.tok){ store(r.tok); return save(r.tok) } }) }).catch(function(){});
+    },4000);
   })();
 
   /* ---------- init ---------- */
