@@ -179,8 +179,9 @@ dialog textarea{width:100%;height:160px;margin:10px 0;padding:10px;border:1px so
 dialog .actions{justify-content:flex-end;flex-wrap:wrap}
 
 @media (max-width:860px){
-  .layout,.below{grid-template-columns:1fr}
+  .layout,.below{grid-template-columns:minmax(0,1fr)}
 }
+.panel,.hero{min-width:0}
 @media (max-width:480px){
   .hero{padding:18px}
   .nowbox{text-align:left}
@@ -338,7 +339,70 @@ body{font-variant-numeric:tabular-nums}
 @media (prefers-reduced-motion:reduce){.cal button.d{transition:none}}
 .mini.on{background:var(--tile);border-color:var(--ink);color:var(--ink);font-weight:600}
 .mini.on::before{content:"\2713\00a0"}
-@media (max-width:720px){.menu{left:0;right:auto}}
+@media (max-width:720px){.menu{left:auto;right:0;max-width:calc(100vw - 28px)}}
+
+/* v9: celular */
+.fab{display:none}
+@media (max-width:720px){
+  .wrap{padding:14px 14px 112px}
+  .top{gap:10px 8px;margin-bottom:14px}
+  .top h1{order:1;flex:1 1 auto;font-size:1.5rem}
+  .tools{display:contents}
+  .sync{order:2;font-size:.74rem;padding:0}
+  .menuwrap{order:3}
+  .monthnav{order:4;flex:1 1 calc(100% - 92px);min-width:0;justify-content:space-between}
+  .monthnav .label{flex:1;min-width:0}
+  .monthnav button{width:44px;height:44px;font-size:1.4rem}
+  #todayBtn{order:5}
+  #todayBtn,#menuBtn{min-height:44px}
+  .menu .btn{min-height:46px}
+
+  .hero{padding:18px 16px}
+  .hero.split{display:grid;grid-template-columns:minmax(0,1fr);gap:0}
+  .hero.split .hmain{display:contents}
+  .hero.split .headline{order:1;margin-bottom:14px}
+  .hero.split .flow{order:2}
+  .hero.split .legend{order:3}
+  .hero.split .hcal{order:4;margin-top:22px;padding-top:18px;border-top:1px solid var(--line)}
+  .hero.split .stats4{order:5;margin-top:20px;padding-top:18px;border-top:1px solid var(--line)}
+  .hero.split .prevnote{order:6}
+  .hero .lng{display:none}
+  .hero .nowbox small{display:inline}
+  .hero .nowbox br{display:none}
+  .hero .nowbox strong{margin-left:8px}
+  .hero .headline{gap:6px 24px}
+
+  .layout>:first-child{order:2}
+  .field input[type=text],.field input[type=date],.field input[type=number],.field input[type=email],.field input[type=password],.field select,.field textarea{min-height:46px}
+  .seg label{padding:11px 8px}
+  .actions .primary,.actions .btn{min-height:48px}
+  .chip{min-height:38px;padding:5px 14px}
+
+  .tx li{grid-template-columns:40px minmax(0,1fr) auto;gap:2px 10px;padding:14px 0}
+  .tx .ops{gap:8px;margin-top:8px}
+  .tx .ops .mini{min-height:38px;padding:0 14px;font-size:.86rem;border-radius:10px}
+  .tx .ops [data-act="edit"],.tx .ops [data-act="del"]{border-color:transparent;background:var(--bg);color:var(--muted)}
+  .tx .ops [data-act="edit"]{margin-left:auto}
+  .tx .ops [data-act="del"]:hover{color:var(--exp-t)}
+
+  .tabs button{font-size:.7rem}
+  .tabs svg{width:22px;height:22px}
+  .toast{bottom:calc(144px + env(safe-area-inset-bottom,0px))}
+
+  .fab{display:inline-flex;align-items:center;gap:8px;position:fixed;right:16px;bottom:calc(80px + env(safe-area-inset-bottom,0px));z-index:14;min-height:52px;padding:0 22px 0 16px;border:0;border-radius:999px;background:var(--accent);color:var(--accent-ink);font-weight:700;font-size:1rem;cursor:pointer;box-shadow:0 6px 18px rgba(20,33,61,.3);transition:opacity .18s,transform .18s}
+  .fab[hidden]{display:none}
+  .fab.away{opacity:0;transform:translateY(14px);pointer-events:none}
+  .fab svg{width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:2.4;stroke-linecap:round}
+}
+@media (max-width:420px){
+  .tabs button{font-size:.66rem}
+}
+@media (max-width:380px){
+  .tabs button{font-size:.64rem}
+  .top h1{font-size:1.35rem}
+  .hero .big{font-size:2.1rem}
+}
+@media (prefers-reduced-motion:reduce){.fab{transition:none}}
 </style>
 </head>
 <body>
@@ -424,7 +488,7 @@ body{font-variant-numeric:tabular-nums}
         <p class="big" id="balance">R$ 0,00</p>
       </div>
       <div class="nowbox">
-        <small>Em conta agora (acumulado: recebido − pago)</small><br>
+        <small title="Acumulado: recebido − pago">Em conta agora<span class="lng"> (acumulado: recebido − pago)</span></small><br>
         <strong id="nowBalance">R$ 0,00</strong>
       </div>
     </div>
@@ -825,6 +889,8 @@ body{font-variant-numeric:tabular-nums}
 </dialog>
 
 <div class="tip" id="tip" role="tooltip" hidden></div>
+
+<button type="button" class="fab" id="fab" aria-label="Novo lançamento" hidden><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>Lançar</button>
 
 <dialog id="payDlg" aria-labelledby="payTitle">
   <form id="payForm" autocomplete="off">
@@ -1765,6 +1831,7 @@ service cloud.firestore {
     var monthly=t==='home'||t==='cards'||t==='rep';
     $('#monthNav').hidden=!monthly;
     $('#todayBtn').hidden=!monthly;
+    $('#fab').hidden=t!=='home';
     try{localStorage.setItem(TAB_KEY,t)}catch(e){}
     if(focus) $('#tab-'+t).focus();
     hideTip();
@@ -3154,6 +3221,19 @@ service cloud.firestore {
       synced=true;
       getVapid().then(function(vk){ if(!vk) return; return getTok(vk).then(function(r){ if(r.tok){ store(r.tok); return save(r.tok) } }) }).catch(function(){});
     },4000);
+  })();
+
+  /* ---------- v9: botão Lançar (celular) ---------- */
+  (function(){
+    var fab=$('#fab'), form=$('#form');
+    fab.addEventListener('click',function(){
+      var h=$('#formTitle'), reduce=window.matchMedia&&matchMedia('(prefers-reduced-motion: reduce)').matches;
+      h.scrollIntoView({behavior:reduce?'auto':'smooth',block:'start'});
+      setTimeout(function(){try{$('#desc').focus({preventScroll:true})}catch(e){$('#desc').focus()}},reduce?0:350);
+    });
+    if('IntersectionObserver' in window){
+      new IntersectionObserver(function(es){fab.classList.toggle('away',es[0].isIntersecting)},{threshold:.25}).observe(form);
+    }
   })();
 
   /* ---------- init ---------- */
