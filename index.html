@@ -1023,6 +1023,7 @@ import { firebaseConfig } from "./firebase-config.js";
 
   var $=function(s){return document.querySelector(s)};
   var brl=new Intl.NumberFormat('pt-BR',{style:'currency',currency:'BRL'});
+  function okId(i){return typeof i==='string'&&/^[A-Za-z0-9_-]{1,64}$/.test(i)}
   function esc(s){return String(s).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]})}
   function pad(n){return String(n).padStart(2,'0')}
   function todayStr(){var d=new Date();return d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate())}
@@ -1494,9 +1495,9 @@ service cloud.firestore {
         '<div><div class="desc">'+esc(x.desc)+'</div><div class="meta"><span>'+esc(x.cat)+'</span>'+(x.rec?'<span>↻ conta fixa</span>':'')+(x.card?'<span>Cartão '+esc(cardName(x.card))+'</span>':'')+'</div></div>'+
         '<div class="amt '+(isExp?'exp':'inc')+'">'+(isExp?'− ':'+ ')+brl.format(x.amount)+'</div>'+
         '<div class="ops">'+
-          '<button type="button" class="'+cls+'" data-act="paid" data-id="'+x.id+'" aria-pressed="'+(x.paid?'true':'false')+'">'+paidTxt+'</button>'+
-          '<button type="button" class="mini" data-act="edit" data-id="'+x.id+'">Editar</button>'+
-          '<button type="button" class="mini del" data-act="del" data-id="'+x.id+'">Excluir</button>'+
+          '<button type="button" class="'+cls+'" data-act="paid" data-id="'+esc(x.id)+'" aria-pressed="'+(x.paid?'true':'false')+'">'+paidTxt+'</button>'+
+          '<button type="button" class="mini" data-act="edit" data-id="'+esc(x.id)+'">Editar</button>'+
+          '<button type="button" class="mini del" data-act="del" data-id="'+esc(x.id)+'">Excluir</button>'+
         '</div></li>';
     }).join('');
   }
@@ -1771,7 +1772,7 @@ service cloud.firestore {
       $('#bkMsg').textContent='Não foi possível ler esse texto. Cole um backup gerado por este app.';
       return;
     }
-    var clean=p.tx.filter(function(x){return x&&x.id&&x.date&&typeof x.amount==='number'&&(x.type==='despesa'||x.type==='receita')});
+    var clean=p.tx.filter(function(x){return x&&okId(x.id)&&x.date&&typeof x.amount==='number'&&(x.type==='despesa'||x.type==='receita')});
     $('#bkMsg').textContent='Restaurando…';
     var ok=await attempt(async function(){
       for(var i=0;i<clean.length;i++) await putTx(clean[i]);
@@ -1783,7 +1784,7 @@ service cloud.firestore {
     if(ok&&Array.isArray(p.rec)){
       var okR=await attempt(async function(){
         for(var c=0;c<p.rec.length;c++){var rr=p.rec[c];
-          if(rr&&rr.id&&rr.startDate&&typeof rr.amount==='number'&&(rr.type==='despesa'||rr.type==='receita')){rr.skips=Array.isArray(rr.skips)?rr.skips:[];await putRec(rr)}}
+          if(rr&&okId(rr.id)&&rr.startDate&&typeof rr.amount==='number'&&(rr.type==='despesa'||rr.type==='receita')){rr.skips=Array.isArray(rr.skips)?rr.skips:[];await putRec(rr)}}
       });
       ok=ok&&okR;
     }
@@ -1794,20 +1795,20 @@ service cloud.firestore {
     }
     if(ok&&Array.isArray(p.cards)){
       var okK=await attempt(async function(){
-        for(var k=0;k<p.cards.length;k++){var cc=p.cards[k]; if(cc&&cc.id&&cc.name&&cc.closing>=1&&cc.closing<=31&&cc.due>=1&&cc.due<=31) await putCard({id:cc.id,name:String(cc.name).slice(0,40),closing:cc.closing,due:cc.due,limit:typeof cc.limit==='number'?cc.limit:0})}
+        for(var k=0;k<p.cards.length;k++){var cc=p.cards[k]; if(cc&&okId(cc.id)&&cc.name&&cc.closing>=1&&cc.closing<=31&&cc.due>=1&&cc.due<=31) await putCard({id:cc.id,name:String(cc.name).slice(0,40),closing:cc.closing,due:cc.due,limit:typeof cc.limit==='number'?cc.limit:0})}
       });
       ok=ok&&okK;
     }
     var nl=0, ni=0;
     if(ok&&Array.isArray(p.loans)){
       var okL=await attempt(async function(){
-        for(var a=0;a<p.loans.length;a++){var l=p.loans[a]; if(l&&l.id&&(l.dir==='devo'||l.dir==='receber')&&typeof l.principal==='number'&&l.firstDue){await putLoan(l);nl++}}
+        for(var a=0;a<p.loans.length;a++){var l=p.loans[a]; if(l&&okId(l.id)&&(l.dir==='devo'||l.dir==='receber')&&typeof l.principal==='number'&&l.firstDue){await putLoan(l);nl++}}
       });
       ok=ok&&okL;
     }
     if(ok&&Array.isArray(p.invs)){
       var okI=await attempt(async function(){
-        for(var b=0;b<p.invs.length;b++){var v=p.invs[b]; if(v&&v.id&&v.name&&typeof v.current==='number'){await putInv(v);ni++}}
+        for(var b=0;b<p.invs.length;b++){var v=p.invs[b]; if(v&&okId(v.id)&&v.name&&typeof v.current==='number'){await putInv(v);ni++}}
       });
       ok=ok&&okI;
     }
@@ -1963,7 +1964,7 @@ service cloud.firestore {
       var pays=l.payments.slice().sort(function(a,b){return a.date<b.date?1:a.date>b.date?-1:0});
       var hist=pays.length?pays.map(function(p){
         return '<li><span>'+fmtDate(p.date)+' · '+brl.format(p.amount)+(p.tx?' <span class="sub">(lançado na Casa)</span>':'')+'</span>'+
-          '<button type="button" class="mini del" data-act="pdel" data-id="'+l.id+'" data-pid="'+p.id+'" aria-label="Excluir pagamento de '+fmtDate(p.date)+'">Excluir</button></li>';
+          '<button type="button" class="mini del" data-act="pdel" data-id="'+esc(l.id)+'" data-pid="'+esc(p.id)+'" aria-label="Excluir pagamento de '+fmtDate(p.date)+'">Excluir</button></li>';
       }).join(''):'<li class="none">Nenhum pagamento registrado ainda.</li>';
       return '<li class="item">'+
         '<div class="head"><span class="nm">'+esc(l.person)+'</span>'+
@@ -1979,11 +1980,11 @@ service cloud.firestore {
           (l.installment>0&&c.total!==l.principal?'<div><div class="k">Emprestado</div><div class="v">'+brl.format(l.principal)+'</div></div>':'')+
         '</div>'+
         '<div class="ops">'+
-          (c.done?'':'<button type="button" class="btn primary" data-act="pay" data-id="'+l.id+'">'+(dev?'Registrar pagamento':'Registrar recebimento')+'</button>')+
-          '<button type="button" class="mini" data-act="ledit" data-id="'+l.id+'">Editar</button>'+
-          '<button type="button" class="mini del" data-act="ldel" data-id="'+l.id+'">Excluir</button>'+
+          (c.done?'':'<button type="button" class="btn primary" data-act="pay" data-id="'+esc(l.id)+'">'+(dev?'Registrar pagamento':'Registrar recebimento')+'</button>')+
+          '<button type="button" class="mini" data-act="ledit" data-id="'+esc(l.id)+'">Editar</button>'+
+          '<button type="button" class="mini del" data-act="ldel" data-id="'+esc(l.id)+'">Excluir</button>'+
         '</div>'+
-        '<details data-did="l'+l.id+'"'+(openDet['l'+l.id]?' open':'')+'><summary>Histórico ('+pays.length+')</summary><ul class="hist">'+hist+'</ul></details>'+
+        '<details data-did="l'+esc(l.id)+'"'+(openDet['l'+l.id]?' open':'')+'><summary>Histórico ('+pays.length+')</summary><ul class="hist">'+hist+'</ul></details>'+
       '</li>';
     }).join('');
   }
@@ -2143,7 +2144,7 @@ service cloud.firestore {
         var moves=i.moves.slice().sort(function(a,b){return a.date<b.date?1:a.date>b.date?-1:0});
         var hist=moves.length?moves.map(function(m){
           return '<li><span>'+(m.kind==='aporte'?'Aporte':'Resgate')+' · '+fmtDate(m.date)+' · '+brl.format(m.amount)+'</span>'+
-            '<button type="button" class="mini del" data-act="mdel" data-id="'+i.id+'" data-mid="'+m.id+'" aria-label="Excluir '+(m.kind==='aporte'?'aporte':'resgate')+' de '+fmtDate(m.date)+'">Excluir</button></li>';
+            '<button type="button" class="mini del" data-act="mdel" data-id="'+esc(i.id)+'" data-mid="'+esc(m.id)+'" aria-label="Excluir '+(m.kind==='aporte'?'aporte':'resgate')+' de '+fmtDate(m.date)+'">Excluir</button></li>';
         }).join(''):'<li class="none">Nenhuma movimentação.</li>';
         return '<li class="item">'+
           '<div class="head"><span class="nm">'+esc(i.name)+'</span><span class="tag">'+esc(i.type)+'</span></div>'+
@@ -2156,11 +2157,11 @@ service cloud.firestore {
             (c.rs>0?'<div><div class="k">Resgatado</div><div class="v">'+brl.format(c.rs)+'</div></div>':'')+
           '</div>'+
           '<div class="ops">'+
-            '<button type="button" class="btn primary" data-act="move" data-id="'+i.id+'">Movimentar</button>'+
-            '<button type="button" class="mini" data-act="iedit" data-id="'+i.id+'">Editar</button>'+
-            '<button type="button" class="mini del" data-act="idel" data-id="'+i.id+'">Excluir</button>'+
+            '<button type="button" class="btn primary" data-act="move" data-id="'+esc(i.id)+'">Movimentar</button>'+
+            '<button type="button" class="mini" data-act="iedit" data-id="'+esc(i.id)+'">Editar</button>'+
+            '<button type="button" class="mini del" data-act="idel" data-id="'+esc(i.id)+'">Excluir</button>'+
           '</div>'+
-          '<details data-did="i'+i.id+'"'+(openDet['i'+i.id]?' open':'')+'><summary>Movimentações ('+moves.length+')</summary><ul class="hist">'+hist+'</ul></details>'+
+          '<details data-did="i'+esc(i.id)+'"'+(openDet['i'+i.id]?' open':'')+'><summary>Movimentações ('+moves.length+')</summary><ul class="hist">'+hist+'</ul></details>'+
         '</li>';
       }).join('');
     }
@@ -2350,10 +2351,10 @@ service cloud.firestore {
           (ended?' · até '+esc(monthName(r.endMonth,{month:'short',year:'numeric'}).replace('.','')):'')+'</div>'+
         '<div class="num">'+brl.format(r.amount)+'</div>'+
         '<div class="ops">'+
-          (ended?'<button type="button" class="btn primary" data-act="rreopen" data-id="'+r.id+'">Reabrir</button>'
-                :'<button type="button" class="mini del" data-act="rend" data-id="'+r.id+'">Encerrar</button>')+
-          '<button type="button" class="mini" data-act="redit" data-id="'+r.id+'">Editar</button>'+
-          '<button type="button" class="mini del" data-act="rdel" data-id="'+r.id+'">Excluir</button>'+
+          (ended?'<button type="button" class="btn primary" data-act="rreopen" data-id="'+esc(r.id)+'">Reabrir</button>'
+                :'<button type="button" class="mini del" data-act="rend" data-id="'+esc(r.id)+'">Encerrar</button>')+
+          '<button type="button" class="mini" data-act="redit" data-id="'+esc(r.id)+'">Editar</button>'+
+          '<button type="button" class="mini del" data-act="rdel" data-id="'+esc(r.id)+'">Excluir</button>'+
         '</div>'+
       '</li>';
     }).join('');
@@ -2700,7 +2701,7 @@ service cloud.firestore {
         var multi=x.instN>1;
         return '<li><span>'+esc(x.desc)+'<br><small class="sub">'+(x.buy?'comprado em '+fmtDate(x.buy)+' · ':'')+esc(x.cat)+(x.paid?' · pago':'')+'</small></span>'+
           '<span class="rowtools"><b>'+brl.format(x.amount)+'</b>'+
-          '<button type="button" class="mini del" data-act="cdeltx" data-id="'+x.id+'">'+(multi?'Excluir parcela':'Excluir')+'</button>'+
+          '<button type="button" class="mini del" data-act="cdeltx" data-id="'+esc(x.id)+'">'+(multi?'Excluir parcela':'Excluir')+'</button>'+
           (multi&&x.gid?'<button type="button" class="mini del" data-act="cdelgid" data-gid="'+esc(x.gid)+'">Excluir compra toda</button>':'')+
           '</span></li>';
       }).join(''):'<li class="none">Nenhuma compra nesta fatura.</li>';
@@ -2711,11 +2712,11 @@ service cloud.firestore {
         '<div class="sub'+(late?' warn':'')+'">Fatura de '+esc(monthName(curMonth,{month:'long'}))+' · vence em '+fmtDate(due)+(unpaid>0.004&&im.length?' · falta pagar '+brl.format(unpaid):'')+'</div>'+
         limHtml+
         '<div class="ops">'+
-          (im.length?'<button type="button" class="mini '+(isPaid?'on':'')+'" data-act="cpay" data-id="'+c.id+'">'+(isPaid?'Fatura paga · reabrir':'Pagar fatura')+'</button>':'')+
-          '<button type="button" class="mini" data-act="cedit" data-id="'+c.id+'">Editar cartão</button>'+
-          '<button type="button" class="mini del" data-act="cdel" data-id="'+c.id+'">Excluir cartão</button>'+
+          (im.length?'<button type="button" class="mini '+(isPaid?'on':'')+'" data-act="cpay" data-id="'+esc(c.id)+'">'+(isPaid?'Fatura paga · reabrir':'Pagar fatura')+'</button>':'')+
+          '<button type="button" class="mini" data-act="cedit" data-id="'+esc(c.id)+'">Editar cartão</button>'+
+          '<button type="button" class="mini del" data-act="cdel" data-id="'+esc(c.id)+'">Excluir cartão</button>'+
         '</div>'+
-        '<details data-cid="'+c.id+'"'+(cOpenDet[c.id]?' open':'')+'><summary>Compras da fatura ('+im.length+')</summary><ul class="hist">'+buys+'</ul></details>'+
+        '<details data-cid="'+esc(c.id)+'"'+(cOpenDet[c.id]?' open':'')+'><summary>Compras da fatura ('+im.length+')</summary><ul class="hist">'+buys+'</ul></details>'+
       '</li>';
     }).join('');
   }
